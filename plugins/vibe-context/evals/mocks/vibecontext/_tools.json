@@ -1,0 +1,89 @@
+{
+  "ttlMs": 0,
+  "cacheScope": "private",
+  "tools": [
+    {
+      "name": "search_context",
+      "description": "Search the documents the user attached to VibeContext: specs, meeting notes, business\n    PDFs and external docs that are not in the repository.\n\n    Use it when the task depends on requirements, decisions, business rules or domain\n    knowledge that the code alone does not explain, and before asking the user about them.\n    Global documents are always searched; pass the VibeContext session id from the session\n    context to include the files attached to this session. Phrase the query as a question or\n    keywords, in the language the documents are likely written in.\n\n    Returns up to top_k (1-20) excerpts, best first, each with its file, location (heading,\n    pages or lines) and score. Scores order the results; they are not a relevance verdict.\n    Short notes that answer the question can score low (0.05 to 0.2), so read the excerpts\n    rather than discarding by score. \"notes\" explains degraded results.\n    ",
+      "inputSchema": {
+        "properties": {
+          "query": {
+            "title": "Query",
+            "type": "string"
+          },
+          "session_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Session Id"
+          },
+          "top_k": {
+            "default": 5,
+            "title": "Top K",
+            "type": "integer"
+          }
+        },
+        "required": [
+          "query"
+        ],
+        "type": "object",
+        "title": "search_contextArguments"
+      }
+    },
+    {
+      "name": "list_documents",
+      "description": "List the documents VibeContext can search: the global ones, plus the ones attached to\n    the given session. Shows each file's status; failed files carry the reason.",
+      "inputSchema": {
+        "properties": {
+          "session_id": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "default": null,
+            "title": "Session Id"
+          }
+        },
+        "type": "object",
+        "title": "list_documentsArguments"
+      }
+    },
+    {
+      "name": "list_sessions",
+      "description": "List Claude Code sessions VibeContext has tracked, most recent activity first.\n\n    \"stale\" means the session never reported its end and has been idle for hours,\n    which usually means it crashed or was killed.\n    ",
+      "inputSchema": {
+        "properties": {
+          "status": {
+            "default": "open",
+            "enum": [
+              "open",
+              "stale",
+              "ended",
+              "all"
+            ],
+            "title": "Status",
+            "type": "string"
+          },
+          "limit": {
+            "default": 20,
+            "title": "Limit",
+            "type": "integer"
+          }
+        },
+        "type": "object",
+        "title": "list_sessionsArguments"
+      }
+    }
+  ],
+  "resultType": "complete"
+}

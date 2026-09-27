@@ -57,3 +57,10 @@ def test_bad_input_never_fails(paths):
     assert result.returncode == 0
     assert result.stdout == ""
     assert "Traceback" in (paths.logs / "hooks.log").read_text()
+
+
+def test_session_id_is_announced_even_when_database_fails(paths):
+    paths.db.mkdir()  # a directory where the database file should be: sqlite3 cannot open it
+    result = fire(paths, {"hook_event_name": "SessionStart", "session_id": "s9", "cwd": "/repo", "source": "startup"})
+    assert "s9" in json.loads(result.stdout)["hookSpecificOutput"]["additionalContext"]
+    assert "Traceback" in (paths.logs / "hooks.log").read_text()

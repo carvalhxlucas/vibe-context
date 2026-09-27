@@ -68,17 +68,6 @@ def on_session_start(conn, event):
         """,
         (event["session_id"], event.get("cwd", ""), event.get("transcript_path"), event.get("source"), ts, ts),
     )
-    # Claude has no other way to learn its own session id, and search_context needs it
-    # to include the files attached to this session.
-    print(json.dumps({
-        "hookSpecificOutput": {
-            "hookEventName": "SessionStart",
-            "additionalContext": (
-                "VibeContext session id: {}. Pass it as session_id to the vibecontext "
-                "search_context tool to include documents attached to this session."
-            ).format(event["session_id"]),
-        }
-    }))
 
 
 def on_user_prompt_submit(conn, event):
@@ -146,6 +135,21 @@ def auto_inject(event):
         }))
 
 
+def announce_session(event):
+    # Claude has no other way to learn its own session id, and search_context needs it
+    # to include the files attached to this session. Printed before touching SQLite,
+    # so a database problem never hides it.
+    print(json.dumps({
+        "hookSpecificOutput": {
+            "hookEventName": "SessionStart",
+            "additionalContext": (
+                "VibeContext session id: {}. Pass it as session_id to the vibecontext "
+                "search_context tool to include documents attached to this session."
+            ).format(event["session_id"]),
+        }
+    }))
+
+
 HANDLERS = {
     "SessionStart": on_session_start,
     "UserPromptSubmit": on_user_prompt_submit,
@@ -159,6 +163,8 @@ def main():
         handler = HANDLERS.get(event.get("hook_event_name"))
         if handler is None or not event.get("session_id"):
             return
+        if event["hook_event_name"] == "SessionStart":
+            announce_session(event)
         conn = connect()
         try:
             with conn:

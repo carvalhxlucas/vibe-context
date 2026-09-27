@@ -1,0 +1,24 @@
+{
+  "name": "vibe-context",
+  "description": "External context for Claude Code: specs, meeting notes and business documents, searchable from any session.",
+  "owner": {
+    "name": "Lucas Carvalho",
+    "url": "https://github.com/carvalhxlucas"
+  },
+  "plugins": [
+    {
+      "name": "vibe-context",
+      "source": "./plugins/vibe-context",
+      "description": "Indexes documents that live outside the repository and exposes them to Claude through a hybrid search MCP tool, with a local dashboard to attach files per session or globally.",
+      "version": "0.1.0",
+      "author": {
+        "name": "Lucas Carvalho"
+      },
+      "homepage": "https://github.com/carvalhxlucas/vibe-context",
+      "repository": "https://github.com/carvalhxlucas/vibe-context",
+      "license": "MIT",
+      "category": "productivity",
+      "keywords": ["rag", "context", "mcp", "qdrant", "hybrid-search", "documents"]
+    }
+  ]
+}

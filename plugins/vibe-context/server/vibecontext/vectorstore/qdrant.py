@@ -1,0 +1,125 @@
+"""Qdrant access. Every call that can fail because Qdrant is down raises RetryLater."""
+
+import functools
+import warnings
+
+import httpx
+from qdrant_client import QdrantClient, models
+from qdrant_client.http.exceptions import ResponseHandlingException, UnexpectedResponse
+
+from vibecontext.config import Settings
+from vibecontext.db.documents import Chunk
+from vibecontext.ingest.errors import RetryLater
+
+DENSE = "dense"
+SPARSE = "bm25"
+PAYLOAD_INDEXES = ("document_id", "scope", "session_id", "kind")
+UPSERT_BATCH = 256
+
+# The local Qdrant is plain HTTP on 127.0.0.1; the client warns about sending the key without TLS.
+warnings.filterwarnings("ignore", message="Api key is used with an insecure connection")
+
+
+def _qdrant_call(method):
+    @functools.wraps(method)
+    def wrapper(self, *args, **kwargs):
+        try:
+            return method(self, *args, **kwargs)
+        except (ResponseHandlingException, httpx.HTTPError, ConnectionError) as error:
+            raise RetryLater(f"Qdrant is unreachable at {self.url}: {error}") from error
+        except UnexpectedResponse as error:
+            if error.status_code in (401, 403):
+                raise RetryLater("Qdrant rejected QDRANT_API_KEY. Check ~/.vibecontext/.env.") from error
+            if error.status_code >= 500:
+                raise RetryLater(f"Qdrant error {error.status_code}: {error}") from error
+            raise
+
+    return wrapper
+
+
+class VectorStore:
+    def __init__(self, settings: Settings | None = None, client: QdrantClient | None = None):
+        self.url = settings.qdrant_url if settings else ":memory:"
+        self._client = client or QdrantClient(
+            url=settings.qdrant_url, api_key=settings.qdrant_api_key or None, timeout=30
+        )
+        self._ready: set[str] = set()
+
+    @_qdrant_call
+    def ensure_collection(self, collection: str, dimension: int) -> None:
+        if collection in self._ready:
+            return
+        if self._client.collection_exists(collection):
+            size = self._client.get_collection(collection).config.params.vectors[DENSE].size
+            if size != dimension:
+                raise RuntimeError(f"Collection {collection} holds {size}-dimension vectors, got {dimension}")
+        else:
+            self._client.create_collection(
+                collection,
+                vectors_config={DENSE: models.VectorParams(size=dimension, distance=models.Distance.COSINE)},
+                sparse_vectors_config={SPARSE: models.SparseVectorParams(modifier=models.Modifier.IDF)},
+            )
+            for field in PAYLOAD_INDEXES:
+                self._client.create_payload_index(collection, field, models.PayloadSchemaType.KEYWORD)
+        self._ready.add(collection)
+
+    @_qdrant_call
+    def replace_document(
+        self,
+        collection: str,
+        document: dict,
+        chunks: list[Chunk],
+        dense: list[list[float]],
+        sparse: list[models.SparseVector],
+    ) -> None:
+        self.ensure_collection(collection, len(dense[0]))
+        self.delete_document(collection, document["id"])
+        points = [
+            models.PointStruct(
+                id=chunk.id,
+                vector={DENSE: dense_vector, SPARSE: sparse_vector},
+                payload={
+                    "document_id": document["id"],
+                    "scope": document["scope"],
+                    "session_id": document["session_id"],
+                    "filename": document["filename"],
+                    "kind": document["kind"],
+                    "language": document["language"],
+                    "ordinal": ordinal,
+                    "text": chunk.text,
+                    "meta": chunk.meta,
+                },
+            )
+            for ordinal, (chunk, dense_vector, sparse_vector) in enumerate(zip(chunks, dense, sparse))
+        ]
+        for start in range(0, len(points), UPSERT_BATCH):
+            self._client.upsert(collection, points[start:start + UPSERT_BATCH], wait=True)
+
+    @_qdrant_call
+    def delete_document(self, collection: str, doc_id: str) -> None:
+        if collection not in self._ready and not self._client.collection_exists(collection):
+            return
+        self._client.delete(
+            collection,
+            points_selector=models.FilterSelector(
+                filter=models.Filter(
+                    must=[models.FieldCondition(key="document_id", match=models.MatchValue(value=doc_id))]
+                )
+            ),
+            wait=True,
+        )
+
+    @_qdrant_call
+    def count(self, collection: str, doc_id: str | None = None) -> int:
+        if not self._client.collection_exists(collection):
+            return 0
+        condition = None
+        if doc_id is not None:
+            condition = models.Filter(
+                must=[models.FieldCondition(key="document_id", match=models.MatchValue(value=doc_id))]
+            )
+        return self._client.count(collection, count_filter=condition, exact=True).count
+
+    @property
+    def client(self) -> QdrantClient:
+        return self._client

@@ -1,0 +1,14 @@
+#!/usr/bin/env bash
+# Runs the VibeContext CLI inside its own virtualenv, created by uv on first use.
+set -euo pipefail
+
+PLUGIN_ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
+export VIBECONTEXT_HOME="${VIBECONTEXT_HOME:-$HOME/.vibecontext}"
+export UV_PROJECT_ENVIRONMENT="${UV_PROJECT_ENVIRONMENT:-$VIBECONTEXT_HOME/venv}"
+
+if ! command -v uv >/dev/null 2>&1; then
+  echo "vibecontext: uv is required. Install it with: brew install uv" >&2
+  exit 1
+fi
+
+exec uv run --quiet --frozen --no-dev --project "$PLUGIN_ROOT/server" python -m vibecontext.cli "$@"

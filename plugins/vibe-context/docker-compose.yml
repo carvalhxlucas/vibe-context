@@ -1,0 +1,18 @@
+name: vibecontext
+
+services:
+  qdrant:
+    # Hybrid search needs the Query API and the sparse IDF modifier (Qdrant 1.10+).
+    image: qdrant/qdrant:v1.19.1
+    restart: unless-stopped
+    ports:
+      - "127.0.0.1:6333:6333"
+      - "127.0.0.1:6334:6334"
+    environment:
+      # Generated on first start by bin/vibecontext and passed with --env-file.
+      QDRANT__SERVICE__API_KEY: ${QDRANT_API_KEY:?QDRANT_API_KEY is not set}
+    volumes:
+      - qdrant_data:/qdrant/storage
+
+volumes:
+  qdrant_data:

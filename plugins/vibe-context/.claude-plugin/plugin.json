@@ -1,0 +1,14 @@
+{
+  "name": "vibe-context",
+  "displayName": "VibeContext",
+  "version": "0.1.0",
+  "description": "Brings context that lives outside the repository (specs, meeting notes, PDFs, external docs) into Claude Code through a local hybrid search MCP server, with a dashboard to attach files to a session or globally.",
+  "author": {
+    "name": "Lucas Carvalho",
+    "url": "https://github.com/carvalhxlucas"
+  },
+  "homepage": "https://github.com/carvalhxlucas/vibe-context",
+  "repository": "https://github.com/carvalhxlucas/vibe-context",
+  "license": "MIT",
+  "keywords": ["rag", "context", "mcp", "qdrant", "hybrid-search", "documents"]
+}

@@ -110,6 +110,29 @@ class VectorStore:
         )
 
     @_qdrant_call
+    def hybrid_query(
+        self,
+        collection: str,
+        dense: list[float],
+        sparse: models.SparseVector,
+        query_filter: models.Filter,
+        limit: int,
+    ) -> list[models.ScoredPoint]:
+        """Dense and BM25 candidates fused with Reciprocal Rank Fusion, inside Qdrant."""
+        if not self._client.collection_exists(collection):
+            return []
+        return self._client.query_points(
+            collection,
+            prefetch=[
+                models.Prefetch(query=dense, using=DENSE, filter=query_filter, limit=limit),
+                models.Prefetch(query=sparse, using=SPARSE, filter=query_filter, limit=limit),
+            ],
+            query=models.FusionQuery(fusion=models.Fusion.RRF),
+            limit=limit,
+            with_payload=True,
+        ).points
+
+    @_qdrant_call
     def count(self, collection: str, doc_id: str | None = None) -> int:
         if not self._client.collection_exists(collection):
             return 0

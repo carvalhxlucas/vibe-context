@@ -12,18 +12,22 @@ from vibecontext.vectorstore.qdrant import VectorStore
 log = logging.getLogger("vibecontext.ingest")
 
 
-def embedding_text(document: dict, chunk: Chunk) -> str:
-    """The text that gets embedded: the chunk plus where it comes from.
+def context_text(filename: str, meta: dict, text: str) -> str:
+    """A chunk plus where it comes from, for embedding.
 
     A chunk reading "Delivery moves to October" matches a question about the
     project schedule better when it also says it sits under "Decisions > Deadlines".
     """
-    context = [document["filename"]]
-    if chunk.meta.get("heading"):
-        context.append(chunk.meta["heading"])
-    elif chunk.meta.get("symbols"):
-        context.append(", ".join(chunk.meta["symbols"]))
-    return " > ".join(context) + "\n\n" + chunk.text
+    context = [filename]
+    if meta.get("heading"):
+        context.append(meta["heading"])
+    elif meta.get("symbols"):
+        context.append(", ".join(meta["symbols"]))
+    return " > ".join(context) + "\n\n" + text
+
+
+def embedding_text(document: dict, chunk: Chunk) -> str:
+    return context_text(document["filename"], chunk.meta, chunk.text)
 
 
 class Indexer:

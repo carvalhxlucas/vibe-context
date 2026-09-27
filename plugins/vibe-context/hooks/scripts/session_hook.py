@@ -8,6 +8,10 @@ working when the backend is down.
 
 A hook failure must never block Claude Code: every error is logged and the script
 exits 0.
+
+With VIBECONTEXT_AUTO_INJECT=true in ~/.vibecontext/.env, UserPromptSubmit also asks
+the running backend for relevant excerpts and hands them to Claude. It never starts
+the backend itself: that would stall the prompt.
 """
 
 import datetime
@@ -16,12 +20,17 @@ import os
 import sqlite3
 import sys
 import traceback
+import urllib.error
+import urllib.request
 from pathlib import Path
 
 HOME = Path(os.environ.get("VIBECONTEXT_HOME", Path.home() / ".vibecontext"))
 DB_PATH = HOME / "vibecontext.db"
 LOG_PATH = HOME / "logs" / "hooks.log"
 SCHEMA_PATH = Path(__file__).resolve().parents[2] / "server" / "vibecontext" / "db" / "schema.sql"
+
+# Must stay under the UserPromptSubmit timeout in hooks.json.
+INJECT_TIMEOUT_SECONDS = 12
 
 
 def now():
@@ -100,6 +109,43 @@ def on_session_end(conn, event):
     )
 
 
+def read_env():
+    values = {}
+    try:
+        lines = (HOME / ".env").read_text(encoding="utf-8").splitlines()
+    except FileNotFoundError:
+        return values
+    for line in lines:
+        line = line.strip()
+        if line and not line.startswith("#") and "=" in line:
+            key, value = line.split("=", 1)
+            values[key.strip().upper()] = value.strip().strip("\"'")
+    return values
+
+
+def auto_inject(event):
+    env = read_env()
+    if env.get("VIBECONTEXT_AUTO_INJECT", "").lower() not in ("1", "true", "yes", "on"):
+        return
+    token = json.loads((HOME / "secrets.json").read_text(encoding="utf-8"))["api_token"]
+    port = int(env.get("VIBECONTEXT_PORT", "8765"))
+    request = urllib.request.Request(
+        "http://127.0.0.1:{}/api/inject".format(port),
+        data=json.dumps({"prompt": event.get("prompt", ""), "session_id": event["session_id"]}).encode("utf-8"),
+        headers={"Authorization": "Bearer " + token, "Content-Type": "application/json"},
+    )
+    try:
+        with urllib.request.urlopen(request, timeout=INJECT_TIMEOUT_SECONDS) as response:
+            context = json.load(response).get("context")
+    except (urllib.error.URLError, OSError, ValueError) as error:
+        log("auto-inject skipped: {}".format(error))
+        return
+    if context:
+        print(json.dumps({
+            "hookSpecificOutput": {"hookEventName": "UserPromptSubmit", "additionalContext": context}
+        }))
+
+
 HANDLERS = {
     "SessionStart": on_session_start,
     "UserPromptSubmit": on_user_prompt_submit,
@@ -119,6 +165,8 @@ def main():
                 handler(conn, event)
         finally:
             conn.close()
+        if event["hook_event_name"] == "UserPromptSubmit":
+            auto_inject(event)
     except Exception:
         try:
             log(traceback.format_exc())

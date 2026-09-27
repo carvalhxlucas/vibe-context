@@ -48,6 +48,20 @@ class Settings(BaseSettings):
     embedding_batch_size: int = 64
     bm25_language: str = "portuguese"
 
+    rerank_provider: Literal["local", "cohere", "none"] = "local"
+    local_rerank_model: str = "BAAI/bge-reranker-v2-m3"
+    cohere_api_key: str = ""
+    cohere_rerank_model: str = "rerank-v3.5"
+    # Hybrid search candidates handed to the reranker; top_k of them are returned.
+    search_candidates: int = 20
+
+    # Off by default: Claude calls search_context when it needs context.
+    vibecontext_auto_inject: bool = False
+    auto_inject_top_k: int = 3
+    # Reranker scores are relative: a short relevant note can score 0.08 and an unrelated
+    # one 0.0002 with bge-reranker-v2-m3. A cut-off near zero drops only the noise.
+    auto_inject_min_score: float = 0.05
+
     # Defaults fit a 512-token local embedding model; raise them for OpenAI embeddings.
     text_chunk_tokens: int = 400
     text_chunk_overlap: int = 60

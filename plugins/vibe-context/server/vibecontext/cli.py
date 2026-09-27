@@ -48,6 +48,10 @@ def cmd_status(paths: Paths, args: argparse.Namespace) -> int:
     print(f"backend   {'running' if backend else 'stopped'}  {runtime.backend_url(settings)}")
     print(f"qdrant    {'running' if qdrant else 'stopped'}  {settings.qdrant_url}")
     print(f"embedding {model_id(settings)}  (collection {collection_name(settings)})")
+    print(f"rerank    {settings.rerank_provider}"
+          + {"local": f"  {settings.local_rerank_model}", "cohere": f"  {settings.cohere_rerank_model}"}.get(
+              settings.rerank_provider, ""))
+    print(f"auto-inject {'on' if settings.vibecontext_auto_inject else 'off'}")
     print(f"sessions  {sessions['open']} open, {sessions['stale']} stale, {sessions['ended']} ended")
     print(
         f"documents {docs['indexed']} indexed, {docs['pending'] + docs['processing']} in queue, {docs['failed']} failed"

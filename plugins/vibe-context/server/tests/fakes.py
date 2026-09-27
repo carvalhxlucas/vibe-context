@@ -8,6 +8,7 @@ from qdrant_client import QdrantClient, models
 from vibecontext.embeddings.base import Embedder
 from vibecontext.ingest.errors import RetryLater
 from vibecontext.ingest.indexer import Indexer
+from vibecontext.rerank.base import Reranker, RerankUnavailable
 from vibecontext.vectorstore.qdrant import VectorStore
 
 DIMENSION = 16
@@ -37,6 +38,8 @@ class FakeEmbedder(Embedder):
         return [self._vector(t) for t in texts]
 
     def embed_query(self, text: str) -> list[float]:
+        if self.unavailable:
+            raise RetryLater(self.unavailable)
         return self._vector(text)
 
 
@@ -62,3 +65,30 @@ def fake_indexer(settings) -> Indexer:
         sparse=FakeSparse(),
         store=VectorStore(client=QdrantClient(":memory:")),
     )
+
+
+class FakeReranker(Reranker):
+    """Scores by the share of query words present in the text."""
+
+    model_id = "fake/overlap-reranker"
+
+    def __init__(self):
+        self.ready = True
+        self.broken: str | None = None
+        self.load_requests = 0
+
+    def start_loading(self) -> None:
+        self.load_requests += 1
+
+    def is_ready(self) -> bool:
+        return self.ready
+
+    @property
+    def unavailable_reason(self) -> str | None:
+        return None if self.ready else "is still loading"
+
+    def score(self, query: str, texts: list[str]) -> list[float]:
+        if self.broken:
+            raise RerankUnavailable(self.broken)
+        words = set(re.findall(r"\w+", query.lower()))
+        return [len(words & set(re.findall(r"\w+", t.lower()))) / max(len(words), 1) for t in texts]

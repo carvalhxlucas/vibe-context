@@ -15,13 +15,48 @@ from vibecontext.config import Paths
 
 INSTRUCTIONS = (
     "VibeContext indexes documents that live outside the repository: specs, meeting notes, "
-    "business PDFs, external docs. The user attaches them to a session or globally from the "
-    "VibeContext dashboard. The SessionStart context gives the current VibeContext session id."
+    "business PDFs, external docs. The user attaches them to a session or globally. "
+    "Call search_context when a task depends on requirements, decisions, business rules or "
+    "domain knowledge the code does not explain, before asking the user. The SessionStart "
+    "context gives the current VibeContext session id; pass it as session_id."
 )
 
 server = MCPServer(name="vibecontext", instructions=INSTRUCTIONS)
 paths = Paths.from_env()
 log = logging.getLogger("vibecontext.mcp")
+
+
+@server.tool()
+def search_context(query: str, session_id: str | None = None, top_k: int = 5) -> dict:
+    """Search the documents the user attached to VibeContext: specs, meeting notes, business
+    PDFs and external docs that are not in the repository.
+
+    Use it when the task depends on requirements, decisions, business rules or domain
+    knowledge that the code alone does not explain, and before asking the user about them.
+    Global documents are always searched; pass the VibeContext session id from the session
+    context to include the files attached to this session. Phrase the query as a question or
+    keywords, in the language the documents are likely written in.
+
+    Returns up to top_k (1-20) excerpts, best first, each with its file, location (heading,
+    pages or lines) and score. Scores order the results; they are not a relevance verdict.
+    Short notes that answer the question can score low (0.05 to 0.2), so read the excerpts
+    rather than discarding by score. "notes" explains degraded results.
+    """
+    return client.call(
+        paths, "POST", "/api/search", timeout=120,
+        json={"query": query, "session_id": session_id, "top_k": top_k},
+    )
+
+
+@server.tool()
+def list_documents(session_id: str | None = None) -> dict:
+    """List the documents VibeContext can search: the global ones, plus the ones attached to
+    the given session. Shows each file's status; failed files carry the reason."""
+    fields = ("id", "filename", "scope", "kind", "status", "chunk_count", "error")
+    found = client.call(paths, "GET", "/api/documents", params={"scope": "global"})["documents"]
+    if session_id:
+        found += client.call(paths, "GET", "/api/documents", params={"session_id": session_id})["documents"]
+    return {"documents": [{key: doc[key] for key in fields} for doc in found]}
 
 
 @server.tool()

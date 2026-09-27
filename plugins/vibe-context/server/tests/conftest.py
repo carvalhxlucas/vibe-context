@@ -4,7 +4,7 @@ from pathlib import Path
 import pytest
 from fastapi.testclient import TestClient
 
-from tests.fakes import fake_indexer
+from tests.fakes import FakeReranker, fake_indexer
 from vibecontext.api.app import create_app
 from vibecontext.config import Paths, ensure_home, load_api_token, load_settings
 from vibecontext.ingest import resources
@@ -28,7 +28,7 @@ def paths(tmp_path, monkeypatch):
 def app(paths, monkeypatch):
     # Leave grammar caches at their defaults so tests do not download them per temp dir.
     monkeypatch.setattr(resources, "configure", lambda paths: None)
-    return create_app(paths, indexer=fake_indexer(load_settings(paths)))
+    return create_app(paths, indexer=fake_indexer(load_settings(paths)), reranker=FakeReranker())
 
 
 @pytest.fixture

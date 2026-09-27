@@ -1,4 +1,5 @@
 import logging
+import threading
 from contextlib import asynccontextmanager
 
 from fastapi import FastAPI, Request
@@ -6,20 +7,25 @@ from fastapi.responses import JSONResponse
 from starlette.middleware.trustedhost import TrustedHostMiddleware
 
 from vibecontext import __version__
-from vibecontext.api import routes_documents, routes_sessions, routes_system
+from vibecontext.api import routes_documents, routes_search, routes_sessions, routes_system
 from vibecontext.api.auth import has_valid_token
 from vibecontext.config import Paths, ensure_home, load_api_token, load_settings
 from vibecontext.ingest import resources
 from vibecontext.ingest.indexer import Indexer
 from vibecontext.ingest.worker import IngestWorker
+from vibecontext.rerank.base import Reranker, create_reranker
+from vibecontext.retrieval.search import Searcher
 
 # Multipart framing around the file itself: boundaries, headers, the scope fields.
 MULTIPART_OVERHEAD_BYTES = 64 * 1024
 
 
-def _log_ingestion_to_file(paths: Paths) -> None:
-    logger = logging.getLogger("vibecontext.ingest")
-    target = str(paths.logs / "ingest.log")
+# Distinguishes "build the reranker from settings" from an explicit None (no reranking).
+_FROM_SETTINGS = object()
+
+
+def _log_to_file(logger_name: str, target: str) -> None:
+    logger = logging.getLogger(logger_name)
     if any(getattr(h, "baseFilename", None) == target for h in logger.handlers):
         return
     handler = logging.FileHandler(target)
@@ -28,18 +34,27 @@ def _log_ingestion_to_file(paths: Paths) -> None:
     logger.setLevel(logging.INFO)
 
 
-def create_app(paths: Paths | None = None, indexer: Indexer | None = None) -> FastAPI:
+def create_app(
+    paths: Paths | None = None,
+    indexer: Indexer | None = None,
+    reranker: Reranker | None | object = _FROM_SETTINGS,
+) -> FastAPI:
     paths = paths or Paths.from_env()
     ensure_home(paths)
     resources.configure(paths)
-    _log_ingestion_to_file(paths)
+    _log_to_file("vibecontext.ingest", str(paths.logs / "ingest.log"))
+    _log_to_file("vibecontext.search", str(paths.logs / "search.log"))
     settings = load_settings(paths)
     indexer = indexer or Indexer(settings, paths)
     worker = IngestWorker(paths, settings, indexer)
+    if reranker is _FROM_SETTINGS:
+        reranker = create_reranker(settings)
+    searcher = Searcher(indexer, reranker, paths.db, settings.search_candidates)
 
     @asynccontextmanager
     async def lifespan(app: FastAPI):
         worker.start()
+        threading.Thread(target=searcher.warm_up, name="search-warm-up", daemon=True).start()
         yield
         worker.stop()
 
@@ -52,6 +67,7 @@ def create_app(paths: Paths | None = None, indexer: Indexer | None = None) -> Fa
     app.state.api_token = load_api_token(paths)
     app.state.worker = worker
     app.state.indexer = indexer
+    app.state.searcher = searcher
 
     max_upload_bytes = settings.max_upload_mb * 1024 * 1024
 
@@ -81,4 +97,5 @@ def create_app(paths: Paths | None = None, indexer: Indexer | None = None) -> Fa
     app.include_router(routes_system.router)
     app.include_router(routes_sessions.router)
     app.include_router(routes_documents.router)
+    app.include_router(routes_search.router)
     return app

@@ -30,6 +30,7 @@ def status(
         "version": __version__,
         "qdrant": {"url": settings.qdrant_url, "reachable": points is not None},
         "embedding": {"model": indexer.embedder.model_id, "collection": indexer.collection, "points": points},
+        "reranker": request.app.state.searcher.reranker_id,
         "sessions": store.count_sessions(db, settings.vibecontext_stale_after_hours),
         "documents": documents.count_documents(db),
     }

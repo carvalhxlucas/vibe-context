@@ -19,6 +19,7 @@ dependencies = [
     "fastembed>=0.8.1",
     "sentence-transformers>=6.1.0",
     "openai>=3.19.2",
+    "cohere>=7.1.1",
 ]
 
 [dependency-groups]

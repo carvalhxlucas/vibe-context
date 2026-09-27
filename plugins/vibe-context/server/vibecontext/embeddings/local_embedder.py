@@ -29,6 +29,8 @@ class LocalEmbedder(Embedder):
         self._query_prompt, self._document_prompt = prompts_for(model_name)
         self._model = None
         self._lock = threading.Lock()
+        # The ingestion worker and search requests share one model instance.
+        self._use = threading.Lock()
 
     def _load(self):
         with self._lock:
@@ -44,11 +46,15 @@ class LocalEmbedder(Embedder):
         return self._model
 
     def embed_documents(self, texts: list[str]) -> list[list[float]]:
-        vectors = self._load().encode_document(
-            texts, prompt=self._document_prompt, batch_size=self._batch_size, normalize_embeddings=True
-        )
+        model = self._load()
+        with self._use:
+            vectors = model.encode_document(
+                texts, prompt=self._document_prompt, batch_size=self._batch_size, normalize_embeddings=True
+            )
         return vectors.tolist()
 
     def embed_query(self, text: str) -> list[float]:
-        vector = self._load().encode_query([text], prompt=self._query_prompt, normalize_embeddings=True)
+        model = self._load()
+        with self._use:
+            vector = model.encode_query([text], prompt=self._query_prompt, normalize_embeddings=True)
         return vector[0].tolist()

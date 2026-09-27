@@ -1,0 +1,16 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <title>VibeContext</title>
+  <link rel="stylesheet" href="/static/style.css">
+</head>
+<body>
+  <main class="narrow">
+    <h1>VibeContext</h1>
+    {% if reason %}<p class="message error">{{ reason }}</p>{% endif %}
+    <p>Open the dashboard from Claude Code with <code>/vibe-context:dashboard</code>.
+       It signs this browser in with a one-time link.</p>
+  </main>
+</body>
+</html>

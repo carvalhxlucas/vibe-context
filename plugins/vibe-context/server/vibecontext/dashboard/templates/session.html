@@ -1,0 +1,18 @@
+{% extends "base.html" %}
+{% block title %}Session · VibeContext{% endblock %}
+{% block content %}
+<p class="crumbs"><a href="/sessions">Sessions</a> /</p>
+<h1>{{ session.cwd or "(unknown directory)" }}</h1>
+<dl class="facts">
+  <dt>Status</dt><dd><span class="badge session-{{ session.status }}">{{ session.status }}</span></dd>
+  <dt>Session id</dt><dd class="mono">{{ session.id }}</dd>
+  <dt>Started</dt><dd title="{{ session.started_at }}">{{ session.started_at | ago }}</dd>
+  <dt>Last activity</dt><dd title="{{ session.last_activity_at }}">{{ session.last_activity_at | ago }}</dd>
+  {% if session.ended_at %}<dt>Ended</dt><dd>{{ session.ended_at | ago }} ({{ session.end_reason or "unknown reason" }})</dd>{% endif %}
+</dl>
+<h2>Files for this session</h2>
+<p class="hint">Only this session's searches see these files. Global context applies to every session.</p>
+{% set messages = [] %}
+{% include "partials/upload.html" %}
+{% include "partials/documents_table.html" %}
+{% endblock %}

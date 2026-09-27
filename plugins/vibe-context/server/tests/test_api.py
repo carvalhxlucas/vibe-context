@@ -34,9 +34,10 @@ def test_no_cors_headers(client, auth):
     assert "access-control-allow-origin" not in response.headers
 
 
-def test_openapi_docs_disabled(client):
-    assert client.get("/docs").status_code == 404
-    assert client.get("/openapi.json").status_code == 404
+def test_openapi_docs_disabled(client, auth):
+    # Unknown non-API paths fall under the dashboard login, then 404.
+    assert client.get("/docs").status_code == 401
+    assert client.get("/api/openapi.json", headers=auth).status_code == 404
 
 
 def test_lists_sessions_with_stale_status(client, auth, paths):

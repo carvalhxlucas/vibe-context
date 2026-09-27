@@ -3,6 +3,7 @@
 import argparse
 import sys
 import time
+import webbrowser
 from pathlib import Path
 
 from vibecontext import client, runtime
@@ -17,7 +18,7 @@ def cmd_start(paths: Paths, args: argparse.Namespace) -> int:
     settings = runtime.ensure_running(paths)
     print(f"qdrant    ready    {settings.qdrant_url}")
     print(f"backend   ready    {runtime.backend_url(settings)}")
-    print("dashboard run /vibe-context:dashboard (available from phase 5)")
+    print("dashboard run /vibe-context:dashboard to open it")
     return 0
 
 
@@ -65,7 +66,13 @@ def cmd_status(paths: Paths, args: argparse.Namespace) -> int:
 
 
 def cmd_dashboard(paths: Paths, args: argparse.Namespace) -> int:
-    print("The dashboard arrives in phase 5.")
+    settings = runtime.ensure_running(paths)
+    login = client.call(paths, "POST", "/api/dashboard/login-code")
+    # The URL carries a one-time code: open it, never print it.
+    if not webbrowser.open(runtime.backend_url(settings) + login["path"]):
+        print("vibecontext: could not open a browser on this machine", file=sys.stderr)
+        return 1
+    print(f"dashboard opened  {runtime.backend_url(settings)}")
     return 0
 
 

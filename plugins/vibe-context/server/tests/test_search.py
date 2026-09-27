@@ -207,3 +207,12 @@ def test_hook_injects_from_running_backend(inject_enabled, paths, auth, monkeypa
     context = output["hookSpecificOutput"]["additionalContext"]
     assert output["hookSpecificOutput"]["hookEventName"] == "UserPromptSubmit"
     assert "A entrega do projeto acontece em outubro." in context
+
+
+def test_same_text_in_session_and_global_is_returned_once(client, auth, app, paths):
+    add_session(paths, "s1")
+    content = "# Prazos\n\nA entrega do projeto acontece em outubro.".encode()
+    index(client, auth, app, "prazos.md", content)
+    index(client, auth, app, "prazos.md", content, scope="session", session_id="s1")
+    names = filenames(search(client, auth, "entrega do projeto", session_id="s1", top_k=20))
+    assert names == ["prazos.md"]

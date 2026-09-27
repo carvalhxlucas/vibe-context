@@ -62,6 +62,18 @@ def _result(point: models.ScoredPoint) -> dict:
     }
 
 
+def _unique_texts(results: list[dict]) -> list[dict]:
+    """Keep the best-ranked copy of each text. The same file attached both globally and to
+    a session would otherwise hand Claude the same excerpt twice."""
+    seen: set[str] = set()
+    unique = []
+    for result in results:
+        if result["text"] not in seen:
+            seen.add(result["text"])
+            unique.append(result)
+    return unique
+
+
 class Searcher:
     def __init__(self, indexer: Indexer, reranker: Reranker | None, db_path: Path, candidates: int):
         self._indexer = indexer
@@ -72,6 +84,10 @@ class Searcher:
     @property
     def reranker_id(self) -> str | None:
         return self._reranker.model_id if self._reranker else None
+
+    @property
+    def reranker_ready(self) -> bool:
+        return self._reranker is not None and self._reranker.is_ready()
 
     def warm_up(self) -> None:
         """Load models ahead of the first search. Runs in a background thread."""
@@ -118,4 +134,4 @@ class Searcher:
             else:
                 self._reranker.start_loading()
                 notes.append(f"Reranker {self._reranker.unavailable_reason}. Results use the hybrid ranking only.")
-        return SearchResponse(results[:top_k], reranked, notes)
+        return SearchResponse(_unique_texts(results)[:top_k], reranked, notes)

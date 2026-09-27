@@ -1,0 +1,26 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>{% block title %}VibeContext{% endblock %}</title>
+  {# No eval, no inline scripts or styles: the page runs under a strict CSP. #}
+  <meta name="htmx-config" content='{"includeIndicatorStyles": false, "allowEval": false, "allowScriptTags": false}'>
+  <link rel="stylesheet" href="/static/style.css">
+  <script src="/static/htmx.min.js" defer></script>
+</head>
+<body>
+  <header class="topbar">
+    <a class="brand" href="/sessions">VibeContext</a>
+    <nav>
+      <a href="/sessions" {% if page == "sessions" %}aria-current="page"{% endif %}>Sessions</a>
+      <a href="/global" {% if page == "global" %}aria-current="page"{% endif %}>Global context</a>
+      <a href="/library" {% if page == "library" %}aria-current="page"{% endif %}>Library</a>
+    </nav>
+    <div id="status" hx-get="/ui/status" hx-trigger="load" hx-swap="outerHTML"></div>
+  </header>
+  <main>
+    {% block content %}{% endblock %}
+  </main>
+</body>
+</html>

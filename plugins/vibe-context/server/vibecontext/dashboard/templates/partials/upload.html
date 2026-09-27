@@ -1,0 +1,11 @@
+<section id="upload" class="panel">
+  <form hx-post="/ui/upload" hx-encoding="multipart/form-data" hx-target="#upload" hx-swap="outerHTML">
+    <input type="hidden" name="scope" value="{{ scope }}">
+    {% if session %}<input type="hidden" name="session_id" value="{{ session.id }}">{% endif %}
+    <input type="file" name="files" multiple required
+           accept=".pdf,.docx,.md,.markdown,.txt,.rst,.py,.js,.mjs,.cjs,.jsx,.ts,.mts,.cts,.tsx,.go,.rs,.java,.kt,.kts,.rb,.php,.c,.h,.cpp,.cc,.cxx,.hpp,.cs,.swift,.scala,.sh,.bash,.sql,.yaml,.yml,.json,.toml">
+    <button type="submit">Attach {{ "to this session" if scope == "session" else "globally" }}</button>
+    <span class="htmx-indicator">Uploading…</span>
+  </form>
+  {% for kind, text in messages %}<p class="message {{ kind }}">{{ text }}</p>{% endfor %}
+</section>

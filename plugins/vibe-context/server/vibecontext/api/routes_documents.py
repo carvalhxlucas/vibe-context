@@ -30,21 +30,17 @@ def _check_scope(db: sqlite3.Connection, settings: Settings, scope: str, session
         raise HTTPException(status_code=422, detail="session_id must be empty when scope is 'global'")
 
 
-@router.post("")
-def upload(
-    request: Request,
-    response: Response,
-    file: Annotated[UploadFile, File()],
-    scope: Annotated[Literal["session", "global"], Form()],
-    session_id: Annotated[str | None, Form()] = None,
-    db: sqlite3.Connection = Depends(get_db),
-    settings: Settings = Depends(get_settings),
-) -> dict:
-    session_id = session_id or None
-    _check_scope(db, settings, scope, session_id)
+def store_upload(
+    request: Request, db: sqlite3.Connection, settings: Settings, upload: UploadFile, scope: str, session_id: str | None
+) -> tuple[dict, bool]:
+    """Validate, save and queue one uploaded file. Returns (document, duplicate).
 
+    Shared by the JSON API and the dashboard. Raises HTTPException on rejection and
+    leaves no file behind when it does.
+    """
+    _check_scope(db, settings, scope, session_id)
     try:
-        filename = storage.display_name(file.filename)
+        filename = storage.display_name(upload.filename)
     except IngestError as error:
         raise HTTPException(status_code=422, detail=str(error)) from error
     try:
@@ -56,7 +52,7 @@ def upload(
     stored_path = doc_id + file_type.extension
     destination = storage.file_path(request.app.state.paths.files, stored_path)
     try:
-        size, sha256, head = storage.save(file.file, destination, settings.max_upload_mb * 1024 * 1024)
+        size, sha256, head = storage.save(upload.file, destination, settings.max_upload_mb * 1024 * 1024)
     except storage.UploadTooLarge as error:
         raise HTTPException(
             status_code=413, detail=f"File is larger than MAX_UPLOAD_MB ({settings.max_upload_mb} MB)"
@@ -76,8 +72,7 @@ def upload(
 
     if duplicate is not None:
         destination.unlink(missing_ok=True)
-        response.status_code = 200
-        return {"document": duplicate, "duplicate": True}
+        return duplicate, True
 
     document = documents.insert_document(
         db,
@@ -92,8 +87,33 @@ def upload(
         sha256=sha256,
     )
     request.app.state.worker.wake()
-    response.status_code = 201
-    return {"document": document, "duplicate": False}
+    return document, False
+
+
+def remove_document(request: Request, db: sqlite3.Connection, doc_id: str) -> bool:
+    deleted = documents.delete_document(db, doc_id)
+    if deleted is None:
+        return False
+    storage.file_path(request.app.state.paths.files, deleted["stored_path"]).unlink(missing_ok=True)
+    # Best effort: with Qdrant down the points stay behind, and search drops
+    # results whose chunk no longer exists in SQLite.
+    request.app.state.indexer.remove(doc_id, deleted["index_key"])
+    return True
+
+
+@router.post("")
+def upload(
+    request: Request,
+    response: Response,
+    file: Annotated[UploadFile, File()],
+    scope: Annotated[Literal["session", "global"], Form()],
+    session_id: Annotated[str | None, Form()] = None,
+    db: sqlite3.Connection = Depends(get_db),
+    settings: Settings = Depends(get_settings),
+) -> dict:
+    document, duplicate = store_upload(request, db, settings, file, scope, session_id or None)
+    response.status_code = 200 if duplicate else 201
+    return {"document": document, "duplicate": duplicate}
 
 
 @router.get("")
@@ -125,13 +145,8 @@ def list_chunks(
 
 @router.delete("/{doc_id}", status_code=204)
 def delete_document(doc_id: str, request: Request, db: sqlite3.Connection = Depends(get_db)) -> Response:
-    deleted = documents.delete_document(db, doc_id)
-    if deleted is None:
+    if not remove_document(request, db, doc_id):
         raise HTTPException(status_code=404, detail="Document not found")
-    storage.file_path(request.app.state.paths.files, deleted["stored_path"]).unlink(missing_ok=True)
-    # Best effort: with Qdrant down the points stay behind, and search drops
-    # results whose chunk no longer exists in SQLite.
-    request.app.state.indexer.remove(doc_id, deleted["index_key"])
     return Response(status_code=204)
 
 

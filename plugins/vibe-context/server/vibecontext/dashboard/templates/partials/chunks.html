@@ -1,0 +1,18 @@
+{% if document %}
+<tr id="chunks-{{ doc_id }}" class="chunks-row open">
+  <td colspan="7">
+    <div class="chunks-head">
+      <span><strong>{{ chunks | length }} chunk{{ "" if chunks | length == 1 else "s" }}</strong> — what search_context returns to Claude</span>
+      <button class="link" hx-get="/ui/documents/{{ doc_id }}/chunks?close=true" hx-target="#chunks-{{ doc_id }}" hx-swap="outerHTML">Hide</button>
+    </div>
+    {% for c in chunks %}
+    <article class="chunk">
+      <header>#{{ c.ordinal }} · {{ c.token_count }} tokens{% if c.meta | location %} · {{ c.meta | location }}{% endif %}</header>
+      <pre>{{ c.text }}</pre>
+    </article>
+    {% endfor %}
+  </td>
+</tr>
+{% else %}
+<tr id="chunks-{{ doc_id }}" class="chunks-row"></tr>
+{% endif %}

@@ -1,0 +1,9 @@
+<div id="status" class="status" hx-get="/ui/status" hx-trigger="every 10s" hx-swap="outerHTML">
+  <span class="dot {{ 'ok' if points is not none else 'bad' }}"></span>
+  {% if points is none %}Qdrant unreachable{% else %}{{ points }} chunks indexed{% endif %}
+  · {{ embedding }}
+  · {% if reranker %}{{ reranker }}{% if not reranker_ready %} (loading){% endif %}{% else %}no reranker{% endif %}
+  {% if counts.pending + counts.processing %} · {{ counts.pending + counts.processing }} in queue{% endif %}
+  {% if counts.failed %} · <a href="/library">{{ counts.failed }} failed</a>{% endif %}
+  · auto-inject {{ "on" if auto_inject else "off" }}
+</div>

@@ -1,0 +1,32 @@
+{% extends "base.html" %}
+{% block title %}Library · VibeContext{% endblock %}
+{% block content %}
+<h1>Library</h1>
+<p class="hint">Everything indexed, global and per session. Preview the chunks Claude receives, reindex or delete.</p>
+
+<section class="panel">
+  <h2>Try a search</h2>
+  <form class="row" hx-post="/ui/search" hx-target="#search-results">
+    <input type="search" name="query" placeholder="Ask what Claude would ask…" maxlength="2000" required>
+    <select name="session_id" aria-label="Session">
+      <option value="">Global only</option>
+      {% for s in sessions %}<option value="{{ s.id }}">+ {{ s.cwd or s.id }} ({{ s.status }})</option>{% endfor %}
+    </select>
+    <button type="submit">Search</button>
+  </form>
+  <div id="search-results"></div>
+</section>
+
+<form class="row filters" hx-get="/ui/documents" hx-target="#documents" hx-swap="outerHTML" hx-trigger="change">
+  <label>Scope
+    <select name="scope"><option value="">All</option><option value="global">Global</option><option value="session">Session</option></select>
+  </label>
+  <label>Status
+    <select name="status">
+      <option value="">All</option><option value="indexed">Indexed</option><option value="pending">Pending</option>
+      <option value="processing">Processing</option><option value="failed">Failed</option>
+    </select>
+  </label>
+</form>
+{% include "partials/documents_table.html" %}
+{% endblock %}

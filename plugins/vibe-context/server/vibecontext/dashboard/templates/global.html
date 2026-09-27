@@ -1,0 +1,9 @@
+{% extends "base.html" %}
+{% block title %}Global context · VibeContext{% endblock %}
+{% block content %}
+<h1>Global context</h1>
+<p class="hint">Files every Claude Code session can search: product specs, business rules, team conventions.</p>
+{% set messages = [] %}
+{% include "partials/upload.html" %}
+{% include "partials/documents_table.html" %}
+{% endblock %}

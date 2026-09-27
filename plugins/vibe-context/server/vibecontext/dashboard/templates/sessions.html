@@ -1,0 +1,25 @@
+{% extends "base.html" %}
+{% block title %}Sessions · VibeContext{% endblock %}
+{% block content %}
+<h1>Sessions</h1>
+<p class="hint">Claude Code sessions seen by the VibeContext hooks. Open one to attach files only it can search.</p>
+{% if sessions %}
+<table>
+  <thead><tr><th>Status</th><th>Directory</th><th>Started</th><th>Last activity</th><th>Prompts</th><th>Files</th></tr></thead>
+  <tbody>
+  {% for s in sessions %}
+    <tr>
+      <td><span class="badge session-{{ s.status }}">{{ s.status }}</span></td>
+      <td><a href="/sessions/{{ s.id }}">{{ s.cwd or "(unknown)" }}</a><div class="sub mono">{{ s.id }}</div></td>
+      <td title="{{ s.started_at }}">{{ s.started_at | ago }}</td>
+      <td title="{{ s.last_activity_at }}">{{ s.last_activity_at | ago }}</td>
+      <td>{{ s.prompt_count }}</td>
+      <td>{{ s.documents }}</td>
+    </tr>
+  {% endfor %}
+  </tbody>
+</table>
+{% else %}
+<p class="empty">No sessions yet. Start Claude Code with the plugin enabled.</p>
+{% endif %}
+{% endblock %}

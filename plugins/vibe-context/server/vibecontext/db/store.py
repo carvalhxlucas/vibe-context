@@ -70,3 +70,10 @@ def count_sessions(conn: sqlite3.Connection, stale_after_hours: int) -> dict[str
         {"cutoff": _stale_cutoff(stale_after_hours)},
     ).fetchone()
     return {key: row[key] or 0 for key in SESSION_STATUSES}
+
+
+def document_counts_by_session(conn: sqlite3.Connection) -> dict[str, int]:
+    rows = conn.execute(
+        "SELECT session_id, COUNT(*) AS n FROM documents WHERE session_id IS NOT NULL GROUP BY session_id"
+    )
+    return {row["session_id"]: row["n"] for row in rows}

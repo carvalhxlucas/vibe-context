@@ -21,3 +21,9 @@ def test_second_run_keeps_existing_secrets(paths):
     ensure_home(paths)
     assert load_api_token(paths) == token
     assert load_settings(paths).qdrant_api_key == qdrant_key
+
+
+def test_embeddings_default_to_local(paths):
+    # Works with no API key; the generated .env says so explicitly too.
+    assert load_settings(paths).embedding_provider == "local"
+    assert "EMBEDDING_PROVIDER=local" in paths.env.read_text()

@@ -1,6 +1,6 @@
 [project]
 name = "vibecontext"
-version = "0.2.0"
+version = "0.2.1"
 description = "Local RAG backend for the VibeContext Claude Code plugin."
 requires-python = ">=3.11"
 license = "MIT"

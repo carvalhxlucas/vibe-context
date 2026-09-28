@@ -41,7 +41,8 @@ class Settings(BaseSettings):
     qdrant_url: str = "http://127.0.0.1:6333"
     qdrant_api_key: str = ""
 
-    embedding_provider: Literal["openai", "local"] = "openai"
+    # Local by default: works with no API key, and nothing leaves the machine.
+    embedding_provider: Literal["openai", "local"] = "local"
     openai_api_key: str = ""
     openai_embedding_model: str = "text-embedding-3-small"
     local_embedding_model: str = "intfloat/multilingual-e5-base"

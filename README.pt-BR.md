@@ -116,11 +116,12 @@ O primeiro start monta o ambiente Python e baixa a imagem do Qdrant, o modelo BM
 gramáticas do tree-sitter: conte um ou dois minutos. Ele cria `~/.vibecontext/.env` com uma
 chave do Qdrant gerada na hora.
 
-**Escolha o modelo de embedding antes de anexar arquivos.** O padrão é o OpenAI
-`text-embedding-3-small`, que precisa de `OPENAI_API_KEY` em `~/.vibecontext/.env`. Para manter
-tudo na sua máquina, use `EMBEDDING_PROVIDER=local`. Depois reinicie com `/vibe-context:stop` e
-`/vibe-context:start`. Sem a chave, os arquivos esperam na fila com uma mensagem explicando;
-nada se perde.
+Os embeddings rodam na sua máquina por padrão, com o `intfloat/multilingual-e5-base`: sem chave
+de API, nada sai do computador. O primeiro arquivo anexado baixa o modelo (cerca de 1 GB) e
+carrega o PyTorch, então leva alguns minutos; os seguintes levam segundos. Para usar o OpenAI
+`text-embedding-3-small`, defina `EMBEDDING_PROVIDER=openai` e `OPENAI_API_KEY` em
+`~/.vibecontext/.env` e reinicie com `/vibe-context:stop` e `/vibe-context:start`. Escolha antes
+de anexar muitos arquivos: trocar reindexa tudo.
 
 Para testar sem instalar:
 
@@ -156,7 +157,7 @@ Tudo fica em `~/.vibecontext/.env`. Reinicie depois de alterar.
 
 | Configuração | Padrão | Observações |
 |---|---|---|
-| `EMBEDDING_PROVIDER` | `openai` | `openai` ou `local`. Trocar provider ou modelo reindexa todos os documentos no próximo start. |
+| `EMBEDDING_PROVIDER` | `local` | `local` ou `openai`. Trocar provider ou modelo reindexa todos os documentos no próximo start. |
 | `OPENAI_EMBEDDING_MODEL` | `text-embedding-3-small` | |
 | `LOCAL_EMBEDDING_MODEL` | `intfloat/multilingual-e5-base` | Multilíngue; cerca de 1 GB, baixado no primeiro uso. |
 | `RERANK_PROVIDER` | `local` | `local`, `cohere` ou `none`. |

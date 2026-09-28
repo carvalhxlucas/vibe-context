@@ -44,11 +44,21 @@ class Indexer:
         self.sparse = sparse or Bm25Encoder(settings.bm25_language, paths.cache / "fastembed" if paths else None)
         self.store = store or VectorStore(settings)
 
-    def index(self, document: dict, chunks: list[Chunk]) -> None:
+    def index(self, document: dict, chunks: list[Chunk], targets: list[str]) -> None:
         texts = [embedding_text(document, chunk) for chunk in chunks]
         dense = self.embedder.embed_documents(texts)
         sparse = self.sparse.embed_documents(texts)
-        self.store.replace_document(self.collection, document, chunks, dense, sparse)
+        self.store.replace_document(self.collection, document, chunks, dense, sparse, targets)
+
+    def sync_targets(self, doc_id: str, collection: str | None, targets: list[str]) -> bool:
+        """Push a document's attachments to its points. Never raises: SQLite stays the
+        source of truth, search filters by it, and the next backend start resyncs."""
+        try:
+            self.store.set_targets(collection or self.collection, doc_id, targets)
+            return True
+        except RetryLater as error:
+            log.warning("Could not update attachments of %s in Qdrant: %s", doc_id, error)
+            return False
 
     def remove(self, doc_id: str, collection: str | None) -> None:
         """Delete a document's points. Never raises: callers are cleaning up."""

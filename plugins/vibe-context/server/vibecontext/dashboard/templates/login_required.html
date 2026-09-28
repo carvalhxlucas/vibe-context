@@ -1,16 +1,17 @@
 <!doctype html>
-<html lang="en">
+<html lang="pt-BR">
 <head>
   <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>VibeContext</title>
   <link rel="stylesheet" href="/static/style.css">
 </head>
 <body>
-  <main class="narrow">
-    <h1>VibeContext</h1>
-    {% if reason %}<p class="message error">{{ reason }}</p>{% endif %}
-    <p>Open the dashboard from Claude Code with <code>/vibe-context:dashboard</code>.
-       It signs this browser in with a one-time link.</p>
+  <main class="login">
+    <div class="brand"><span class="logo"><span class="logo-core"></span></span><span class="brand-name">VibeContext</span></div>
+    {% if reason %}<p class="notice error">{{ reason }}</p>{% endif %}
+    <p>Abra o dashboard pelo Claude Code com <code>/vibe-context:dashboard</code>.
+       Ele autentica este navegador com um link de uso único.</p>
   </main>
 </body>
 </html>

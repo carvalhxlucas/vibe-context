@@ -1,0 +1,3 @@
+{% from "partials/macros.html" import brain_overlay %}
+{% include "partials/global_side.html" %}
+{{ brain_overlay(gctx, "CONTEXTO TOTAL", "tokens indexados", gctx.chunks ~ " chunks · " ~ gctx.files ~ " arquivos · " ~ gctx.sessions ~ " sessões", True) }}

@@ -209,10 +209,33 @@ def test_hook_injects_from_running_backend(inject_enabled, paths, auth, monkeypa
     assert "A entrega do projeto acontece em outubro." in context
 
 
-def test_same_text_in_session_and_global_is_returned_once(client, auth, app, paths):
+def test_same_passage_in_two_files_is_returned_once(client, auth, app):
+    passage = "A entrega do projeto acontece em outubro."
+    index(client, auth, app, "prazos.md", passage.encode())
+    index(client, auth, app, "prazos-copia.txt", (passage + "\n").encode())
+    results = search(client, auth, "entrega do projeto", top_k=20).json()["results"]
+    assert [r["text"] for r in results].count(passage) == 1
+
+
+def test_scope_says_why_the_caller_sees_a_result(client, auth, app, paths):
     add_session(paths, "s1")
-    content = "# Prazos\n\nA entrega do projeto acontece em outubro.".encode()
-    index(client, auth, app, "prazos.md", content)
-    index(client, auth, app, "prazos.md", content, scope="session", session_id="s1")
-    names = filenames(search(client, auth, "entrega do projeto", session_id="s1", top_k=20))
-    assert names == ["prazos.md"]
+    doc = index(client, auth, app, "ata.md", b"# Ata\n\nRefunds policy approved.", scope="session", session_id="s1")
+    body = search(client, auth, "refunds policy", session_id="s1").json()
+    assert body["results"][0]["scope"] == "session"
+    client.post(f"/api/documents/{doc['id']}/attachments", headers=auth, json={"scope": "global"})
+    assert search(client, auth, "refunds policy").json()["results"][0]["scope"] == "global"
+
+
+def test_detached_document_disappears_even_if_qdrant_payload_is_stale(client, auth, app, paths):
+    doc = index(client, auth, app, "billing.md", b"# Billing\n\nRefunds take five days.")
+    from vibecontext.db import documents
+
+    conn = store.connect(paths.db)
+    documents.detach(conn, doc["id"], "global")  # Qdrant payload still says global
+    conn.close()
+    assert search(client, auth, "refunds").json()["results"] == []
+
+
+def test_library_only_document_is_never_searched(client, auth, app):
+    index(client, auth, app, "billing.md", b"# Billing\n\nRefunds take five days.", scope="library")
+    assert search(client, auth, "refunds").json()["results"] == []

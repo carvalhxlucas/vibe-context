@@ -52,23 +52,30 @@ on automatic injection (see [Configuration](#configuration)).
 
 ### 🔎 `search_context` — the tool Claude calls
 
-Global documents are always searched; the session's own files are added when Claude
-passes its session id, which it gets at session start. Files attached to one session
-are never visible from another. Each result carries the file, the heading, page or
-line range it came from, and a score.
+Every file lives once in a library and is searched only where it is attached: globally,
+to one or more sessions, or nowhere yet. A search always covers the global files and
+adds the session's own when Claude passes its session id, which it gets at session
+start. Files attached to one session are never visible from another. Each result
+carries the file, the heading, page or line range it came from, and a score.
 
 Claude also gets `list_documents`, to see what exists before searching, and
 `list_sessions`.
 
 ### 🗂️ The dashboard — `/vibe-context:dashboard`
 
-A local web page with three views:
+A local web page, in Portuguese, with three views. Sessions and global context show a
+live drawing of what is indexed, colored by where it comes from, which absorbs new
+files as you drop them in.
 
 | View | What it is for |
 |---|---|
-| **Sessions** | Open, stale and recent sessions. Open one to attach files only that session can search. |
-| **Global context** | Files every session can search: product specs, business rules, conventions. |
-| **Library** | Everything indexed. Preview the exact chunks Claude receives, reindex, delete, and try a search. |
+| **Sessões** | Open, idle and recent Claude Code sessions. Drop files on one, or pick them from the library, to make them searchable from that session only. |
+| **Contexto global** | Files every session can search: product specs, business rules, conventions. |
+| **Biblioteca** | Every indexed file and where it is attached. Attach or detach from a menu, import without attaching, preview the exact chunks Claude receives, reindex, delete, and try a search. |
+
+Detaching never deletes: the file stays in the library, indexed, ready to attach
+elsewhere. Adding a file whose content is already in the library attaches the existing
+copy instead of indexing it twice.
 
 ### ⌨️ Commands
 
@@ -230,10 +237,12 @@ UV_PROJECT_ENVIRONMENT=../../../.venv uv run pytest
 
 ### Tests
 
-122 tests cover the hooks, the API's authentication and host checks, parsing, chunking,
-the ingestion queue, indexing against an in-memory Qdrant, search and reranking with
-fakes, automatic injection through a real HTTP server, and the dashboard: login,
-CSRF refusal, escaping of file names and chunk text, uploads and fragments.
+139 tests cover the hooks, the API's authentication and host checks, parsing, chunking
+(including a 1,200-statement function, which used to crash the parser), the ingestion
+queue, attachments and the migration from single-scope documents, indexing against an
+in-memory Qdrant, search and reranking with fakes, automatic injection through a real
+HTTP server, and the dashboard: login, CSRF refusal, no inline styles under the CSP,
+escaping of file names and chunk text, uploads, attaching and fragments.
 
 ### Evals
 

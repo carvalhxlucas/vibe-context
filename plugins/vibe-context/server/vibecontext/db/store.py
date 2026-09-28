@@ -10,7 +10,9 @@ SESSION_STATUSES = ("open", "stale", "ended")
 
 
 def connect(db_path: Path) -> sqlite3.Connection:
-    conn = sqlite3.connect(db_path, timeout=5)
+    # FastAPI may open a request's connection on one threadpool thread and close it on
+    # another. Each connection still serves a single request at a time, so allow that.
+    conn = sqlite3.connect(db_path, timeout=5, check_same_thread=False)
     conn.row_factory = sqlite3.Row
     conn.executescript(SCHEMA.read_text(encoding="utf-8"))
     _migrate(conn)
@@ -22,6 +24,59 @@ def _migrate(conn: sqlite3.Connection) -> None:
     columns = {row["name"] for row in conn.execute("PRAGMA table_info(documents)")}
     if "index_key" not in columns:
         conn.execute("ALTER TABLE documents ADD COLUMN index_key TEXT")
+    if "scope" in columns:
+        _move_scope_to_attachments(conn)
+
+
+def _move_scope_to_attachments(conn: sqlite3.Connection) -> None:
+    """Before attachments, each document had one scope column. Turn it into an attachment
+    and rebuild the table without it (SQLite cannot drop a column behind a CHECK)."""
+    conn.execute("PRAGMA foreign_keys = OFF")  # only takes effect outside a transaction
+    try:
+        with conn:
+            conn.execute(
+                """
+                INSERT OR IGNORE INTO attachments (document_id, target, created_at)
+                SELECT id, CASE scope WHEN 'global' THEN 'global' ELSE session_id END, created_at FROM documents
+                """
+            )
+            conn.execute(
+                """
+                CREATE TABLE documents_new (
+                    id          TEXT PRIMARY KEY,
+                    filename    TEXT NOT NULL,
+                    stored_path TEXT NOT NULL,
+                    kind        TEXT NOT NULL CHECK (kind IN ('pdf', 'docx', 'markdown', 'text', 'code')),
+                    language    TEXT,
+                    size_bytes  INTEGER NOT NULL,
+                    sha256      TEXT NOT NULL,
+                    status      TEXT NOT NULL DEFAULT 'pending'
+                                CHECK (status IN ('pending', 'processing', 'indexed', 'failed')),
+                    error       TEXT,
+                    chunk_count INTEGER NOT NULL DEFAULT 0,
+                    token_count INTEGER NOT NULL DEFAULT 0,
+                    created_at  TEXT NOT NULL,
+                    updated_at  TEXT NOT NULL,
+                    indexed_at  TEXT,
+                    index_key   TEXT
+                )
+                """
+            )
+            conn.execute(
+                """
+                INSERT INTO documents_new
+                SELECT id, filename, stored_path, kind, language, size_bytes, sha256, status, error, chunk_count,
+                       (SELECT COALESCE(SUM(token_count), 0) FROM chunks WHERE document_id = documents.id),
+                       created_at, updated_at, indexed_at, index_key
+                FROM documents
+                """
+            )
+            conn.execute("DROP TABLE documents")
+            conn.execute("ALTER TABLE documents_new RENAME TO documents")
+            conn.execute("CREATE INDEX IF NOT EXISTS idx_documents_queue ON documents (status, created_at)")
+            conn.execute("CREATE INDEX IF NOT EXISTS idx_documents_sha256 ON documents (sha256)")
+    finally:
+        conn.execute("PRAGMA foreign_keys = ON")
 
 
 def _stale_cutoff(stale_after_hours: int) -> str:
@@ -73,7 +128,5 @@ def count_sessions(conn: sqlite3.Connection, stale_after_hours: int) -> dict[str
 
 
 def document_counts_by_session(conn: sqlite3.Connection) -> dict[str, int]:
-    rows = conn.execute(
-        "SELECT session_id, COUNT(*) AS n FROM documents WHERE session_id IS NOT NULL GROUP BY session_id"
-    )
-    return {row["session_id"]: row["n"] for row in rows}
+    rows = conn.execute("SELECT target, COUNT(*) AS n FROM attachments WHERE target != 'global' GROUP BY target")
+    return {row["target"]: row["n"] for row in rows}

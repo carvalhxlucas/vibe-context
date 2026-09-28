@@ -1,9 +1,12 @@
-<div id="status" class="status" hx-get="/ui/status" hx-trigger="every 10s" hx-swap="outerHTML">
-  <span class="dot {{ 'ok' if points is not none else 'bad' }}"></span>
-  {% if points is none %}Qdrant unreachable{% else %}{{ points }} chunks indexed{% endif %}
-  · {{ embedding }}
-  · {% if reranker %}{{ reranker }}{% if not reranker_ready %} (loading){% endif %}{% else %}no reranker{% endif %}
-  {% if counts.pending + counts.processing %} · {{ counts.pending + counts.processing }} in queue{% endif %}
-  {% if counts.failed %} · <a href="/library">{{ counts.failed }} failed</a>{% endif %}
-  · auto-inject {{ "on" if auto_inject else "off" }}
+<div class="daemon-row">
+  <span class="dot glow {{ 'c-green' if qdrant_ok else 'c-rose' }}"></span>
+  <span class="grow">Backend local</span><span class="mono faint">:{{ port }}</span>
 </div>
+<span class="mono faint">~/.vibecontext</span>
+<span class="mono muted">{{ snap.library_stats() }}</span>
+<span class="mono faint ellipsis" title="Modelo de embedding">{{ embedding }}</span>
+{% if not qdrant_ok %}<span class="daemon-alert">Qdrant inacessível</span>{% endif %}
+{% if reranker and not reranker_ready %}<span class="daemon-note">Reranker carregando…</span>{% endif %}
+{% if counts.pending + counts.processing %}<span class="daemon-note">{{ counts.pending + counts.processing }} na fila</span>{% endif %}
+{% if counts.failed %}<a class="daemon-alert" href="/library">{{ counts.failed }} com falha</a>{% endif %}
+{% if auto_inject %}<span class="daemon-note">Injeção automática ligada</span>{% endif %}

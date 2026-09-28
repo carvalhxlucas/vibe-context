@@ -1,32 +1,27 @@
 {% extends "base.html" %}
-{% block title %}Library · VibeContext{% endblock %}
+{% block title %}Biblioteca · VibeContext{% endblock %}
 {% block content %}
-<h1>Library</h1>
-<p class="hint">Everything indexed, global and per session. Preview the chunks Claude receives, reindex or delete.</p>
+<section class="page">
+  <header class="detail-head">
+    <div class="stack-8">
+      <h1 class="title">Biblioteca</h1>
+      <span class="lede">Tudo que o VibeContext indexou localmente. Anexe a qualquer sessão ou ao global; arquivos sem anexo não entram em nenhuma busca.</span>
+    </div>
+    <div class="row-10">
+      <input id="lib-q" class="input search" form="lib-filter" type="search" name="q" value="{{ q }}"
+             placeholder="Buscar arquivos…" autocomplete="off" aria-label="Buscar arquivos">
+      <button class="btn" hx-get="/ui/search" hx-target="#modal" hx-swap="innerHTML">Testar busca</button>
+      <button class="btn primary" data-upload-target="library">Importar</button>
+    </div>
+  </header>
 
-<section class="panel">
-  <h2>Try a search</h2>
-  <form class="row" hx-post="/ui/search" hx-target="#search-results">
-    <input type="search" name="query" placeholder="Ask what Claude would ask…" maxlength="2000" required>
-    <select name="session_id" aria-label="Session">
-      <option value="">Global only</option>
-      {% for s in sessions %}<option value="{{ s.id }}">+ {{ s.cwd or s.id }} ({{ s.status }})</option>{% endfor %}
-    </select>
-    <button type="submit">Search</button>
+  <form id="lib-filter" class="chips" hx-get="/ui/library/table" hx-target="#lib-table" hx-swap="outerHTML"
+        hx-trigger="input changed delay:250ms from:#lib-q, change">
+    {% for key, label, count in chips %}
+      <label class="chip"><input type="radio" name="kind" value="{{ key }}" {% if kind == key %}checked{% endif %}>{{ label }}<span class="mono faint">{{ count }}</span></label>
+    {% endfor %}
   </form>
-  <div id="search-results"></div>
-</section>
 
-<form class="row filters" hx-get="/ui/documents" hx-target="#documents" hx-swap="outerHTML" hx-trigger="change">
-  <label>Scope
-    <select name="scope"><option value="">All</option><option value="global">Global</option><option value="session">Session</option></select>
-  </label>
-  <label>Status
-    <select name="status">
-      <option value="">All</option><option value="indexed">Indexed</option><option value="pending">Pending</option>
-      <option value="processing">Processing</option><option value="failed">Failed</option>
-    </select>
-  </label>
-</form>
-{% include "partials/documents_table.html" %}
+  {% include "partials/library_table.html" %}
+</section>
 {% endblock %}

@@ -1,0 +1,41 @@
+{% macro file_row(f, detach_target=None, dim=False) %}
+<div class="file-row {{ 'dim' if dim }} state-{{ f.state }}">
+  <span class="kind-dot c-{{ f.kind_color }}"></span>
+  <div class="file-main">
+    <span class="file-name ellipsis">{{ f.name }}</span>
+    {% if not dim %}<span class="file-note ellipsis" title="{{ f.note }}">{{ f.note }}</span>{% endif %}
+  </div>
+  <span class="mono tokens">{{ f.tokens }}</span>
+  {% if detach_target %}
+  <button class="icon-btn" title="Desanexar (o arquivo continua na biblioteca)" aria-label="Desanexar {{ f.name }}"
+          hx-post="/ui/detach" hx-vals='{"doc_id": "{{ f.id }}", "target": "{{ detach_target }}"}' hx-swap="none">×</button>
+  {% endif %}
+</div>
+{% endmacro %}
+
+{% macro brain_overlay(stats, eyebrow, unit, detail, oob) %}
+<div id="ctx-overlay" class="brain-overlay" data-spec="{{ stats.spec }}" data-busy="{{ 'true' if stats.busy else 'false' }}" {% if oob %}hx-swap-oob="true"{% endif %}>
+  <div class="brain-top">
+    <div class="brain-stats">
+      <span class="eyebrow wide">{{ eyebrow }}</span>
+      <div class="big"><span class="big-num">{{ stats.tokens }}</span><span class="big-unit">{{ unit }}</span></div>
+      <span class="mono muted small">{{ detail }}</span>
+    </div>
+    <div class="brain-status {{ 'busy' if stats.busy }}" data-status>
+      <span class="dot glow"></span><span data-status-label>{{ "INDEXANDO" if stats.busy else "SINCRONIZADO" }}</span>
+    </div>
+  </div>
+  <div class="brain-bottom">
+    <div class="segbar">
+      {% for sg in stats.segs %}<span class="seg c-{{ sg.color }}" data-w="{{ sg.pct }}"></span>{% endfor %}
+    </div>
+    <div class="legend">
+      {% for sg in stats.segs %}
+        <span class="legend-item"><span class="dot c-{{ sg.color }}"></span><span>{{ sg.label }}</span><span class="mono faint">{{ sg.tokens }}</span></span>
+      {% else %}
+        <span class="legend-item faint">Nada anexado ainda</span>
+      {% endfor %}
+    </div>
+  </div>
+</div>
+{% endmacro %}

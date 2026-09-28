@@ -1,0 +1,22 @@
+<div id="session-list" class="session-list" {% if oob %}hx-swap-oob="true"{% endif %}>
+  <div class="list-head">
+    <span class="list-title">Sessões</span>
+    <span class="live mono"><span class="dot small c-green"></span>AO VIVO</span>
+  </div>
+  {% for s in snap.sessions %}
+    <a class="session-card {{ 'active' if s.selected }} {{ 'ended' if s.status == 'ended' }}" href="/sessions?s={{ s.id }}">
+      <div class="row-8">
+        <span class="dot {{ 'glow c-green' if s.status == 'open' else 'c-muted' }}"></span>
+        <span class="grow mono card-name ellipsis">{{ s.name }}</span>
+        <span class="faint small">{{ s.since }}</span>
+      </div>
+      <span class="mono dim small ellipsis">{{ s.repo }}</span>
+      <div class="row-10">
+        <span class="track"><span class="fill c-{{ s.color }}" data-w="{{ s.pct }}"></span></span>
+        <span class="mono muted small">{{ s.tokens_fmt }}</span>
+      </div>
+    </a>
+  {% else %}
+    <p class="faint small pad">Nenhuma sessão registrada.</p>
+  {% endfor %}
+</div>

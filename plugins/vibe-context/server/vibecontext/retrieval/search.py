@@ -1,9 +1,9 @@
 """Hybrid search with reranking, behind the search_context MCP tool.
 
-1. Dense and BM25 candidates, fused with RRF inside Qdrant, filtered to global
-   documents plus the caller's session.
-2. Candidates whose chunk no longer exists in SQLite are dropped (vectors left
-   behind when Qdrant was down during a delete).
+1. Dense and BM25 candidates, fused with RRF inside Qdrant, filtered to documents
+   attached globally or to the caller's session.
+2. Candidates SQLite no longer allows are dropped: deleted documents, or detached
+   ones whose Qdrant payload has not caught up (Qdrant was down when it changed).
 3. A cross-encoder reranks what is left; top_k are returned.
 """
 
@@ -13,7 +13,7 @@ from pathlib import Path
 
 from qdrant_client import models
 
-from vibecontext.db import store
+from vibecontext.db import documents, store
 from vibecontext.ingest.indexer import Indexer
 from vibecontext.rerank.base import Reranker, RerankUnavailable
 
@@ -31,30 +31,29 @@ class SearchResponse:
 
 
 def scope_filter(session_id: str | None) -> models.Filter:
-    """Global documents, plus the session's own. Other sessions' documents never match."""
-    conditions = [models.FieldCondition(key="scope", match=models.MatchValue(value="global"))]
+    """Documents attached globally, plus the session's own. Other sessions' never match."""
+    conditions = [models.FieldCondition(key="global", match=models.MatchValue(value=True))]
     if session_id:
-        conditions.append(models.FieldCondition(key="session_id", match=models.MatchValue(value=session_id)))
+        conditions.append(models.FieldCondition(key="sessions", match=models.MatchValue(value=session_id)))
     return models.Filter(should=conditions)
 
 
-def _existing_chunk_ids(db_path: Path, ids: list[str]) -> set[str]:
+def _visible_chunks(db_path: Path, ids: list[str], session_id: str | None) -> dict[str, str]:
     conn = store.connect(db_path)
     try:
-        placeholders = ",".join("?" * len(ids))
-        rows = conn.execute(f"SELECT id FROM chunks WHERE id IN ({placeholders})", ids)
-        return {row["id"] for row in rows}
+        return documents.visible_chunks(conn, ids, session_id)
     finally:
         conn.close()
 
 
-def _result(point: models.ScoredPoint) -> dict:
+def _result(point: models.ScoredPoint, scope: str) -> dict:
     payload = point.payload
     return {
         "chunk_id": str(point.id),
         "document_id": payload["document_id"],
         "filename": payload["filename"],
-        "scope": payload["scope"],
+        # Why this caller sees it: attached to their session, or globally.
+        "scope": scope,
         "kind": payload["kind"],
         "location": payload.get("meta") or {},
         "score": round(float(point.score), 4),
@@ -63,8 +62,8 @@ def _result(point: models.ScoredPoint) -> dict:
 
 
 def _unique_texts(results: list[dict]) -> list[dict]:
-    """Keep the best-ranked copy of each text. The same file attached both globally and to
-    a session would otherwise hand Claude the same excerpt twice."""
+    """Keep the best-ranked copy of each text. Two library files can share a passage, a
+    template paragraph for instance, and Claude only needs it once."""
     seen: set[str] = set()
     unique = []
     for result in results:
@@ -107,16 +106,14 @@ class Searcher:
         points = self._indexer.store.hybrid_query(
             self._indexer.collection, dense, sparse, scope_filter(session_id), self._candidates
         )
-        if points:
-            existing = _existing_chunk_ids(self._db_path, [str(p.id) for p in points])
-            orphans = len(points) - len(existing)
-            if orphans:
-                log.info("Dropped %d result(s) whose chunk no longer exists", orphans)
-            points = [p for p in points if str(p.id) in existing]
+        visible = _visible_chunks(self._db_path, [str(p.id) for p in points], session_id) if points else {}
+        if len(visible) < len(points):
+            log.info("Dropped %d result(s) deleted or detached since indexing", len(points) - len(visible))
+        points = [p for p in points if str(p.id) in visible]
         if not points:
             return SearchResponse([], False, ["No indexed document matched. Attach files with /vibe-context:add."])
 
-        results = [_result(p) for p in points]
+        results = [_result(p, visible[str(p.id)]) for p in points]
         reranked = False
         if self._reranker is not None:
             if self._reranker.is_ready():

@@ -1,0 +1,4 @@
+{% from "partials/macros.html" import brain_overlay %}
+{% include "partials/session_side.html" %}
+{{ brain_overlay(ctx, "CONTEXTO DA SESSÃO", "tokens indexados", ctx.chunks ~ " chunks · " ~ ctx.files ~ " arquivos · busca híbrida", True) }}
+{% include "partials/session_list.html" %}

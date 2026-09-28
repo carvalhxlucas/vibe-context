@@ -1,0 +1,28 @@
+{% from "partials/macros.html" import file_row %}
+<div id="side-files" class="side" hx-get="/ui/global/panel"
+     hx-trigger="vc-changed from:body{% if gctx.busy %}, load delay:3s{% endif %}" hx-swap="outerHTML">
+  <button class="dropzone" data-upload-target="global">
+    <span>Solte arquivos no contexto global</span>
+    <span class="mono dim small">disponível para todas as sessões</span>
+  </button>
+
+  <div class="group">
+    <div class="group-head"><span>Arquivos globais</span><span class="mono faint small">{{ global_files|length }} arquivos · {{ global_tokens_fmt }}</span></div>
+    {% for f in global_files %}
+      {{ file_row(f, detach_target="global") }}
+    {% else %}
+      <div class="empty">Nenhum arquivo global. Specs, regras de negócio e convenções costumam morar aqui.</div>
+    {% endfor %}
+  </div>
+
+  <div class="group">
+    <div class="group-head"><span>Sessões conectadas</span></div>
+    {% for s in snap.live_sessions %}
+      <a class="session-link" href="/sessions?s={{ s.id }}">
+        <span class="dot c-{{ s.color }}"></span><span class="grow mono ellipsis">{{ s.name }}</span><span class="mono faint small">+{{ s.own_tokens_fmt }}</span>
+      </a>
+    {% else %}
+      <div class="empty">Nenhuma sessão aberta.</div>
+    {% endfor %}
+  </div>
+</div>

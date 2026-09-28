@@ -1,0 +1,26 @@
+{% from "partials/macros.html" import file_row %}
+<div id="side-files" class="side" hx-get="/ui/sessions/{{ sel.id }}/panel"
+     hx-trigger="vc-changed from:body{% if ctx.busy %}, load delay:3s{% endif %}" hx-swap="outerHTML">
+  <button class="dropzone" data-upload-target="{{ sel.id }}">
+    <span>Solte arquivos para alimentar esta sessão</span>
+    <span class="mono dim small">código · docs · specs → chunk + embed</span>
+  </button>
+
+  <div class="group">
+    <div class="group-head"><span>Desta sessão</span><span class="mono faint small">{{ sess_files|length }} · {{ sel.own_tokens_fmt }}</span></div>
+    {% for f in sess_files %}
+      {{ file_row(f, detach_target=sel.id) }}
+    {% else %}
+      <div class="empty">Nenhum arquivo anexado ainda. Esta sessão só enxerga o contexto global.</div>
+    {% endfor %}
+  </div>
+
+  <div class="group">
+    <div class="group-head"><span>Herdado do global</span><a class="mono small" href="/global">{{ global_files|length }} arquivos →</a></div>
+    {% for f in global_files %}
+      {{ file_row(f, dim=True) }}
+    {% else %}
+      <div class="empty">Nada no contexto global.</div>
+    {% endfor %}
+  </div>
+</div>

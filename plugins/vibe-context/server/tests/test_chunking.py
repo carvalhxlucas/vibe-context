@@ -1,3 +1,5 @@
+import pytest
+
 from vibecontext.ingest.chunking.code import chunk_code
 from vibecontext.ingest.chunking.text import chunk_blocks
 from vibecontext.ingest.chunking.tokens import count_tokens
@@ -110,3 +112,18 @@ def test_minified_line_is_hard_split():
     chunks = chunk_code(source, "javascript", max_tokens=200)
     assert "".join(c.text for c in chunks) == source
     assert all(c.token_count <= 200 for c in chunks)
+
+
+@pytest.mark.parametrize(
+    "language, header, statement, footer",
+    [
+        ("typescript", "export function session() {\n", "  const value = compute();\n", "}\n"),
+        ("python", "def session():\n", "    value = compute()\n", "    return value\n"),
+    ],
+)
+def test_large_function_splits_without_crashing(language, header, statement, footer):
+    # Regression: native tree-sitter nodes outliving their parent segfaulted the backend.
+    source = header + statement * 1200 + footer
+    chunks = chunk_code(source, language, max_tokens=480)
+    assert len(chunks) > 5
+    assert "".join(c.text for c in chunks) == source

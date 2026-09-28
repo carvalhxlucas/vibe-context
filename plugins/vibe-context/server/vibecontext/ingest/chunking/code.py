@@ -39,9 +39,13 @@ def _parser(language: str):
 
 
 def _last_row(node) -> int:
-    end = node.end_point
+    # Points are unpacked, never read as .row/.column: in tree-sitter 0.26.0 the named
+    # attributes return 0 or read freed memory once a few hundred Points exist, which
+    # segfaulted the backend on any function longer than about 250 statements.
+    end_row, end_column = node.end_point
+    start_row, _ = node.start_point
     # A node that ends at column 0 stops at the end of the previous line.
-    return end.row - 1 if end.column == 0 and end.row > node.start_point.row else end.row
+    return end_row - 1 if end_column == 0 and end_row > start_row else end_row
 
 
 _DEFINITION_HINTS = ("definition", "declaration", "function", "method", "class", "struct", "interface",

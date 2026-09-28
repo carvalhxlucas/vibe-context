@@ -77,9 +77,42 @@ def test_duplicate_upload_returns_existing_document(client, auth, paths):
     assert len(stored_files(paths)) == 1
 
 
-def test_same_file_in_session_and_global_is_not_a_duplicate(client, auth, session):
-    assert upload(client, auth, "a.txt", b"shared").status_code == 201
-    assert upload(client, auth, "a.txt", b"shared", scope="session", session_id=session).status_code == 201
+def test_same_content_is_one_document_attached_twice(client, auth, session, paths):
+    first = upload(client, auth, "a.txt", b"shared")
+    assert first.status_code == 201
+    second = upload(client, auth, "copy-of-a.txt", b"shared", scope="session", session_id=session)
+    assert second.status_code == 200
+    assert second.json()["duplicate"] is True
+    document = second.json()["document"]
+    assert document["id"] == first.json()["document"]["id"]
+    assert document["attachments"] == {"global": True, "sessions": [session]}
+    assert len(stored_files(paths)) == 1
+
+
+def test_library_upload_attaches_nothing(client, auth):
+    response = upload(client, auth, "a.txt", b"library only", scope="library")
+    assert response.status_code == 201
+    assert response.json()["document"]["attachments"] == {"global": False, "sessions": []}
+    assert upload(client, auth, "a.txt", b"x", scope="library", session_id="s1").status_code == 422
+
+
+def test_attach_and_detach_keep_the_document(client, auth, session):
+    doc_id = upload(client, auth, "a.txt", b"text", scope="library").json()["document"]["id"]
+    url = f"/api/documents/{doc_id}/attachments"
+
+    attached = client.post(url, headers=auth, json={"scope": "session", "session_id": session}).json()
+    assert attached["attachments"] == {"global": False, "sessions": [session]}
+    attached = client.post(url, headers=auth, json={"scope": "global"}).json()
+    assert attached["attachments"] == {"global": True, "sessions": [session]}
+
+    detached = client.request("DELETE", url, headers=auth, params={"scope": "global"}).json()
+    assert detached["attachments"] == {"global": False, "sessions": [session]}
+    detached = client.request("DELETE", url, headers=auth, params={"scope": "session", "session_id": session}).json()
+    assert detached["attachments"] == {"global": False, "sessions": []}
+    assert client.get(f"/api/documents/{doc_id}", headers=auth).status_code == 200
+
+    assert client.post(url, headers=auth, json={"scope": "session", "session_id": "nope"}).status_code == 404
+    assert client.post("/api/documents/missing/attachments", headers=auth, json={"scope": "global"}).status_code == 404
 
 
 def test_scope_validation(client, auth, session):
@@ -166,10 +199,13 @@ def test_list_filters(client, auth, app, session):
     names = lambda **params: [
         d["filename"] for d in client.get("/api/documents", headers=auth, params=params).json()["documents"]
     ]
+    upload(client, auth, "l.txt", b"library doc", scope="library")
     assert names(scope="global") == ["g.txt"]
     assert names(session_id=session) == ["s.txt"]
+    assert names(scope="library") == ["l.txt"]
+    assert sorted(names()) == ["g.txt", "l.txt", "s.txt"]
     assert names(status="indexed") == []
-    assert client.get("/api/status", headers=auth).json()["documents"]["pending"] == 2
+    assert client.get("/api/status", headers=auth).json()["documents"]["pending"] == 3
 
 
 def test_second_worker_for_same_home_refuses_to_start(paths, app):

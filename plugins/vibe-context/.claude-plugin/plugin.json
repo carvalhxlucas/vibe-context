@@ -1,7 +1,7 @@
 {
   "name": "vibe-context",
   "displayName": "VibeContext",
-  "version": "0.1.0",
+  "version": "0.2.0",
   "description": "Brings context that lives outside the repository (specs, meeting notes, PDFs, external docs) into Claude Code through a local hybrid search MCP server, with a dashboard to attach files to a session or globally.",
   "author": {
     "name": "Lucas Carvalho",

@@ -20,11 +20,10 @@ CREATE TABLE IF NOT EXISTS sessions (
 CREATE INDEX IF NOT EXISTS idx_sessions_status_activity
     ON sessions (status, last_activity_at DESC);
 
--- Documents double as the ingestion queue: the worker claims rows in 'pending'.
+-- The library: one row per distinct file content. Doubles as the ingestion queue:
+-- the worker claims rows in 'pending'.
 CREATE TABLE IF NOT EXISTS documents (
     id          TEXT PRIMARY KEY,
-    scope       TEXT NOT NULL CHECK (scope IN ('session', 'global')),
-    session_id  TEXT,
     filename    TEXT NOT NULL,  -- original name, for display only; never used as a path
     stored_path TEXT NOT NULL,  -- "<id><ext>" inside the files directory
     kind        TEXT NOT NULL CHECK (kind IN ('pdf', 'docx', 'markdown', 'text', 'code')),
@@ -35,16 +34,26 @@ CREATE TABLE IF NOT EXISTS documents (
                 CHECK (status IN ('pending', 'processing', 'indexed', 'failed')),
     error       TEXT,
     chunk_count INTEGER NOT NULL DEFAULT 0,
+    token_count INTEGER NOT NULL DEFAULT 0,
     created_at  TEXT NOT NULL,
     updated_at  TEXT NOT NULL,
     indexed_at  TEXT,
-    index_key   TEXT,  -- Qdrant collection holding this document's vectors
-    CHECK ((scope = 'global') = (session_id IS NULL))
+    index_key   TEXT  -- Qdrant collection holding this document's vectors
 );
 
 CREATE INDEX IF NOT EXISTS idx_documents_queue ON documents (status, created_at);
-CREATE INDEX IF NOT EXISTS idx_documents_scope ON documents (scope, session_id);
 CREATE INDEX IF NOT EXISTS idx_documents_sha256 ON documents (sha256);
+
+-- Where search can see a document: 'global' (every session) or a Claude Code session id.
+-- A document with no attachment stays in the library and is never searched.
+CREATE TABLE IF NOT EXISTS attachments (
+    document_id TEXT NOT NULL REFERENCES documents (id) ON DELETE CASCADE,
+    target      TEXT NOT NULL,
+    created_at  TEXT NOT NULL,
+    PRIMARY KEY (document_id, target)
+);
+
+CREATE INDEX IF NOT EXISTS idx_attachments_target ON attachments (target);
 
 CREATE TABLE IF NOT EXISTS chunks (
     id          TEXT PRIMARY KEY,  -- also the Qdrant point id

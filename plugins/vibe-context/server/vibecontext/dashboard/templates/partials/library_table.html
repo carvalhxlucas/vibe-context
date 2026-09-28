@@ -1,0 +1,55 @@
+<div id="lib-table" class="table" hx-get="/ui/library/table" hx-include="#lib-filter" hx-swap="outerHTML"
+     hx-trigger="vc-changed from:body{% if busy %}, load delay:3s{% endif %}">
+  <div class="thead grid-lib">
+    <span>ARQUIVO</span><span>TIPO</span><span>CHUNKS</span><span>TOKENS</span><span>EM USO</span><span>ATUALIZADO</span><span></span>
+  </div>
+  {% for r in rows %}
+    <div class="trow grid-lib state-{{ r.state }}">
+      <div class="row-12 min0">
+        <span class="kind-dot c-{{ r.kind_color }}"></span>
+        <div class="file-main">
+          <span class="file-name ellipsis">{{ r.name }}</span>
+          <span class="file-note ellipsis" title="{{ r.note }}">{{ r.note }}</span>
+        </div>
+      </div>
+      <span class="muted">{{ r.kind_label }}</span>
+      <span class="mono muted">{{ r.chunks }}</span>
+      <span class="mono">{{ r.tokens }}</span>
+      <div class="usage">
+        {% for u in r.usage %}
+          <span class="usage-chip mono"><span class="dot tiny c-{{ u.color }}"></span>{{ u.label }}</span>
+        {% else %}
+          <span class="faint">—</span>
+        {% endfor %}
+      </div>
+      <span class="dim">{{ r.updated }}</span>
+      <details class="menu">
+        <summary class="btn small">Anexar ▾</summary>
+        <div class="menu-pop">
+          {% set is_global = r.global %}
+          <button class="menu-item" hx-post="/ui/{{ 'detach' if is_global else 'attach' }}" hx-swap="none"
+                  hx-vals='{"doc_id": "{{ r.id }}", "target": "global"}'>
+            <span class="dot c-violet"></span><span class="grow {{ 'faint' if is_global }}">Contexto global</span><span class="check">{{ "✓" if is_global }}</span>
+          </button>
+          {% for s in snap.sessions if s.status != "ended" or s.id in r.sessions %}
+            {% set has = s.id in r.sessions %}
+            <button class="menu-item" hx-post="/ui/{{ 'detach' if has else 'attach' }}" hx-swap="none"
+                    hx-vals='{"doc_id": "{{ r.id }}", "target": "{{ s.id }}"}'>
+              <span class="dot c-{{ s.color }}"></span><span class="grow mono ellipsis {{ 'faint' if has }}">{{ s.name }}</span><span class="check">{{ "✓" if has }}</span>
+            </button>
+          {% endfor %}
+          <span class="menu-hint">✓ anexado · clique para desanexar</span>
+          <hr>
+          {% if r.state == "indexed" %}
+          <button class="menu-item" hx-get="/ui/documents/{{ r.id }}/chunks" hx-target="#modal" hx-swap="innerHTML">Ver chunks</button>
+          {% endif %}
+          <button class="menu-item" hx-post="/ui/documents/{{ r.id }}/reindex" hx-swap="none">Reindexar</button>
+          <button class="menu-item danger" hx-delete="/ui/documents/{{ r.id }}" hx-swap="none"
+                  hx-confirm="Excluir {{ r.name }} da biblioteca? Ele sai de todas as sessões e do global.">Excluir da biblioteca</button>
+        </div>
+      </details>
+    </div>
+  {% else %}
+    <div class="empty pad">{{ "Nenhum arquivo corresponde ao filtro." if q or kind != "all" else "A biblioteca está vazia. Importe arquivos ou anexe a uma sessão." }}</div>
+  {% endfor %}
+</div>

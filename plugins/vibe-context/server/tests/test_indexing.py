@@ -11,6 +11,19 @@ from vibecontext.ingest.indexer import embedding_text
 from vibecontext.vectorstore.qdrant import DENSE, SPARSE
 
 
+def add_session(paths, session_id):
+    import datetime
+
+    ts = datetime.datetime.now(datetime.timezone.utc).isoformat(timespec="seconds")
+    conn = store.connect(paths.db)
+    with conn:
+        conn.execute(
+            "INSERT INTO sessions (id, cwd, status, started_at, last_activity_at) VALUES (?, '/repo', 'open', ?, ?)",
+            (session_id, ts, ts),
+        )
+    conn.close()
+
+
 def upload(client, auth, name, content, **form):
     form.setdefault("scope", "global")
     return client.post("/api/documents", headers=auth, data=form, files={"file": (name, content)}).json()["document"]
@@ -50,8 +63,8 @@ def test_points_match_sqlite_chunks_and_carry_payload(client, auth, app, paths):
     assert sorted(str(p.id) for p in stored) == chunk_ids(paths, document["id"])
     # scroll orders by point id, which is random; the first chunk is ordinal 0.
     payload = min(stored, key=lambda p: p.payload["ordinal"]).payload
-    assert payload["scope"] == "global"
-    assert payload["session_id"] is None
+    assert payload["global"] is True
+    assert payload["sessions"] == []
     assert payload["filename"] == "billing.md"
     assert payload["meta"]["heading"] == "Billing"
     assert payload["text"].startswith("# Billing")
@@ -100,8 +113,8 @@ def test_points_written_for_a_deleted_document_are_removed(client, auth, app, pa
     document = upload(client, auth, "a.md", b"# A\n\ntext")
     original_index = app.state.indexer.index
 
-    def index_then_delete(job, chunks):
-        original_index(job, chunks)
+    def index_then_delete(job, chunks, targets):
+        original_index(job, chunks, targets)
         conn = store.connect(paths.db)
         documents.delete_document(conn, job["id"])
         conn.close()
@@ -165,3 +178,34 @@ def test_e5_models_get_their_prefixes(model, expected):
 def test_missing_openai_key_is_retry_later_with_instructions():
     with pytest.raises(RetryLater, match="OPENAI_API_KEY is not set"):
         OpenAIEmbedder("", "text-embedding-3-small", 64).embed_documents(["hi"])
+
+
+def payload_of(app, doc_id):
+    return {k: v for k, v in points(app, doc_id)[0].payload.items() if k in ("global", "sessions")}
+
+
+def test_attach_and_detach_rewrite_the_payload_without_reembedding(client, auth, app, paths):
+    add_session(paths, "s1")
+    document = upload(client, auth, "a.md", b"# A\n\ntext", scope="library")
+    app.state.worker.run_once()
+    assert payload_of(app, document["id"]) == {"global": False, "sessions": []}
+    calls = app.state.indexer.embedder.calls
+
+    url = f"/api/documents/{document['id']}/attachments"
+    client.post(url, headers=auth, json={"scope": "session", "session_id": "s1"})
+    client.post(url, headers=auth, json={"scope": "global"})
+    assert payload_of(app, document["id"]) == {"global": True, "sessions": ["s1"]}
+    client.request("DELETE", url, headers=auth, params={"scope": "global"})
+    assert payload_of(app, document["id"]) == {"global": False, "sessions": ["s1"]}
+    assert app.state.indexer.embedder.calls == calls
+
+
+def test_resync_repairs_payloads_written_while_qdrant_was_down(client, auth, app, paths):
+    document = upload(client, auth, "a.md", b"# A\n\ntext", scope="library")
+    app.state.worker.run_once()
+    conn = store.connect(paths.db)
+    documents.attach(conn, document["id"], "global")  # SQLite changed, Qdrant never told
+    conn.close()
+    assert payload_of(app, document["id"])["global"] is False
+    assert app.state.worker.resync_targets() is True
+    assert payload_of(app, document["id"])["global"] is True

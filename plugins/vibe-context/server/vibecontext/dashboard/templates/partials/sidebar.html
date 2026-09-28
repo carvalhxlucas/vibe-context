@@ -1,0 +1,29 @@
+<aside id="sidebar" class="sidebar" hx-get="/ui/sidebar?view={{ view }}" hx-trigger="vc-changed from:body, every 20s" hx-swap="outerHTML">
+  <a class="brand" href="/sessions"><span class="logo"><span class="logo-core"></span></span><span class="brand-name">VibeContext</span></a>
+
+  <nav class="nav">
+    <span class="eyebrow">WORKSPACE</span>
+    <a class="nav-item" href="/sessions" {% if view == "sessions" %}aria-current="page"{% endif %}>
+      <span class="dot glow c-green"></span><span class="grow">Sessões</span><span class="count">{{ nav_counts.sessions }}</span>
+    </a>
+    <a class="nav-item" href="/global" {% if view == "global" %}aria-current="page"{% endif %}>
+      <span class="ring c-violet"></span><span class="grow">Contexto global</span><span class="count">{{ nav_counts.global }}</span>
+    </a>
+    <a class="nav-item" href="/library" {% if view == "library" %}aria-current="page"{% endif %}>
+      <span class="square"></span><span class="grow">Biblioteca</span><span class="count">{{ nav_counts.library }}</span>
+    </a>
+  </nav>
+
+  <div class="nav">
+    <span class="eyebrow">CLAUDE CODE</span>
+    {% for s in snap.live_sessions[:8] %}
+      <a class="nav-session" href="/sessions?s={{ s.id }}" title="{{ s.repo }}">
+        <span class="dot small c-{{ s.color }}"></span><span class="grow ellipsis mono">{{ s.name }}</span>
+      </a>
+    {% else %}
+      <span class="nav-empty">Nenhuma sessão aberta</span>
+    {% endfor %}
+  </div>
+
+  <div id="status" class="daemon" hx-get="/ui/status" hx-trigger="load, every 10s" hx-swap="innerHTML"></div>
+</aside>

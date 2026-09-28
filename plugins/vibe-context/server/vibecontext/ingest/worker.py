@@ -92,7 +92,7 @@ class IngestWorker:
             if not path.exists():
                 raise IngestError("The stored file is missing. Upload it again.")
             chunks = build_chunks(path, job["kind"], job["language"], self._settings)
-            self._indexer.index(job, chunks)
+            self._indexer.index(job, chunks, documents.targets_of(conn, doc_id))
         except RetryLater as error:
             log.warning("WAITING %s (%s): %s", filename, doc_id, error)
             documents.defer(conn, doc_id, f"Waiting to retry: {error}")
@@ -115,12 +115,32 @@ class IngestWorker:
         if job["index_key"] and job["index_key"] != collection:
             # Reindexed after an embedding model change: drop the vectors in the old collection.
             self._indexer.remove(doc_id, job["index_key"])
+        # Attachments may have changed while the document was being embedded.
+        self._indexer.sync_targets(doc_id, collection, documents.targets_of(conn, doc_id))
         log.info("INDEXED %s (%s): %d chunks in %.1fs", filename, doc_id, len(chunks), time.monotonic() - started)
         return "done"
 
+    def resync_targets(self) -> bool:
+        """Rewrite every indexed document's attachments into Qdrant. Returns False when
+        Qdrant is unreachable, so the caller tries again later."""
+        conn = store.connect(self._paths.db)
+        try:
+            indexed = documents.indexed_targets(conn)
+        finally:
+            conn.close()
+        for doc_id, collection, targets in indexed:
+            if not self._indexer.sync_targets(doc_id, collection, targets):
+                return False
+        if indexed:
+            log.info("Synced attachments of %d document(s) to Qdrant", len(indexed))
+        return True
+
     def _loop(self) -> None:
         backoff = 0.0
+        needs_resync = True
         while not self._stopping.is_set():
+            if needs_resync:
+                needs_resync = not self.resync_targets()
             try:
                 outcome = self.run_once()
             except Exception:

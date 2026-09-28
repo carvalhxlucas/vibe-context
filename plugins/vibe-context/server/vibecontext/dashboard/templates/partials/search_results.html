@@ -1,11 +1,11 @@
 {% if error %}
-<p class="message error">{{ error }}</p>
+<p class="notice error">{{ error }}</p>
 {% elif response %}
-  {% for note in response.notes %}<p class="message info">{{ note }}</p>{% endfor %}
+  {% for note in response.notes %}<p class="notice">{{ note }}</p>{% endfor %}
   {% for r in response.results %}
   <article class="chunk">
-    <header><strong>{{ r.filename }}</strong>{% if r.location | location %} · {{ r.location | location }}{% endif %}
-      · score {{ "%.3f" | format(r.score) }}{{ "" if response.reranked else " (hybrid)" }} · {{ r.scope }}</header>
+    <header class="mono"><strong>{{ r.filename }}</strong>{% if r.location | location %} · {{ r.location | location }}{% endif %}
+      · score {{ "%.3f" | format(r.score) }}{{ "" if response.reranked else " (híbrido)" }} · {{ r.scope }}</header>
     <pre>{{ r.text }}</pre>
   </article>
   {% endfor %}

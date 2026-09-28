@@ -1,25 +1,42 @@
 {% extends "base.html" %}
-{% block title %}Sessions · VibeContext{% endblock %}
+{% from "partials/macros.html" import brain_overlay %}
+{% block title %}Sessões · VibeContext{% endblock %}
 {% block content %}
-<h1>Sessions</h1>
-<p class="hint">Claude Code sessions seen by the VibeContext hooks. Open one to attach files only it can search.</p>
-{% if sessions %}
-<table>
-  <thead><tr><th>Status</th><th>Directory</th><th>Started</th><th>Last activity</th><th>Prompts</th><th>Files</th></tr></thead>
-  <tbody>
-  {% for s in sessions %}
-    <tr>
-      <td><span class="badge session-{{ s.status }}">{{ s.status }}</span></td>
-      <td><a href="/sessions/{{ s.id }}">{{ s.cwd or "(unknown)" }}</a><div class="sub mono">{{ s.id }}</div></td>
-      <td title="{{ s.started_at }}">{{ s.started_at | ago }}</td>
-      <td title="{{ s.last_activity_at }}">{{ s.last_activity_at | ago }}</td>
-      <td>{{ s.prompt_count }}</td>
-      <td>{{ s.documents }}</td>
-    </tr>
-  {% endfor %}
-  </tbody>
-</table>
-{% else %}
-<p class="empty">No sessions yet. Start Claude Code with the plugin enabled.</p>
-{% endif %}
+<div class="sessions-layout">
+  {% include "partials/session_list.html" %}
+
+  {% if sel %}
+  <section class="detail" data-drop-target="{{ sel.id }}">
+    <header class="detail-head">
+      <div class="stack-8">
+        <div class="row-12">
+          <h1 class="mono title">{{ sel.name }}</h1>
+          <span class="pill"><span class="dot {{ 'c-green' if sel.status == 'open' else 'c-muted' }}"></span>{{ sel.status_label }}</span>
+        </div>
+        <span class="mono meta">claude code · {{ sel.short_id }} · {{ sel.repo }} · aberta {{ sel.since }}</span>
+      </div>
+      <div class="row-10">
+        <button class="btn" hx-get="/ui/picker?target={{ sel.id }}" hx-target="#modal" hx-swap="innerHTML">Da biblioteca</button>
+        <button class="btn primary" data-upload-target="{{ sel.id }}">Anexar arquivos</button>
+      </div>
+    </header>
+
+    <div class="detail-grid">
+      <div class="brain-panel">
+        <canvas class="brain" data-brain></canvas>
+        {{ brain_overlay(ctx, "CONTEXTO DA SESSÃO", "tokens indexados", ctx.chunks ~ " chunks · " ~ ctx.files ~ " arquivos · busca híbrida") }}
+      </div>
+      {% include "partials/session_side.html" %}
+    </div>
+
+    <div class="drop-overlay"><span>Solte para anexar a <span class="mono accent">{{ sel.name }}</span></span></div>
+  </section>
+  {% else %}
+  <section class="detail empty-state">
+    <h1 class="title">Nenhuma sessão ainda</h1>
+    <p class="muted">Abra o Claude Code com o plugin ativo: cada sessão aparece aqui, e você anexa arquivos só para ela.
+      Enquanto isso, o <a href="/global">contexto global</a> e a <a href="/library">biblioteca</a> já funcionam.</p>
+  </section>
+  {% endif %}
+</div>
 {% endblock %}

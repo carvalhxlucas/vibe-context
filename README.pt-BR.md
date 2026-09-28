@@ -51,21 +51,28 @@ ligue a injeção automática (veja [Configuração](#configuração)).
 
 ### 🔎 `search_context`: a ferramenta que o Claude chama
 
-Documentos globais entram sempre; os arquivos da sessão entram quando o Claude passa o id da
-sessão, que ele recebe no início dela. Arquivos anexados a uma sessão nunca aparecem em outra.
-Cada resultado traz o arquivo, o heading, a página ou o intervalo de linhas de origem, e um score.
+Cada arquivo existe uma vez na biblioteca e só é buscado onde está anexado: no global, em uma
+ou mais sessões, ou em lugar nenhum por enquanto. A busca sempre cobre os arquivos globais e
+inclui os da sessão quando o Claude passa o id dela, que ele recebe no início. Arquivos anexados
+a uma sessão nunca aparecem em outra. Cada resultado traz o arquivo, o heading, a página ou o
+intervalo de linhas de origem, e um score.
 
 O Claude também recebe `list_documents`, para ver o que existe antes de buscar, e `list_sessions`.
 
 ### 🗂️ O dashboard: `/vibe-context:dashboard`
 
-Uma página web local com três telas:
+Uma página web local com três telas. Sessões e contexto global mostram um desenho vivo do que
+está indexado, colorido pela origem, que absorve os arquivos novos conforme você os solta ali.
 
 | Tela | Para que serve |
 |---|---|
-| **Sessions** | Sessões abertas, travadas e recentes. Abra uma para anexar arquivos que só ela enxerga. |
-| **Global context** | Arquivos que toda sessão pode buscar: specs de produto, regras de negócio, convenções. |
-| **Library** | Tudo o que foi indexado. Veja os chunks exatos que o Claude recebe, reindexe, apague e teste uma busca. |
+| **Sessões** | Sessões do Claude Code abertas, ociosas e recentes. Solte arquivos numa delas, ou escolha da biblioteca, para que só aquela sessão os encontre. |
+| **Contexto global** | Arquivos que toda sessão pode buscar: specs de produto, regras de negócio, convenções. |
+| **Biblioteca** | Todo arquivo indexado e onde ele está anexado. Anexe ou desanexe por um menu, importe sem anexar, veja os chunks exatos que o Claude recebe, reindexe, apague e teste uma busca. |
+
+Desanexar nunca apaga: o arquivo continua na biblioteca, indexado, pronto para ser anexado em
+outro lugar. Enviar um arquivo cujo conteúdo já está na biblioteca anexa a cópia existente em vez
+de indexar duas vezes.
 
 ### ⌨️ Comandos
 
@@ -225,10 +232,12 @@ UV_PROJECT_ENVIRONMENT=../../../.venv uv run pytest
 
 ### Testes
 
-122 testes cobrem os hooks, a autenticação e a checagem de host da API, parsing, chunking, a
-fila de ingestão, a indexação contra um Qdrant em memória, busca e rerank com fakes, injeção
-automática através de um servidor HTTP real, e o dashboard: login, recusa de CSRF, escape de
-nomes de arquivo e de texto de chunk, uploads e fragmentos.
+139 testes cobrem os hooks, a autenticação e a checagem de host da API, parsing, chunking
+(incluindo uma função com 1.200 instruções, que antes derrubava o parser), a fila de ingestão,
+os anexos e a migração dos documentos de escopo único, a indexação contra um Qdrant em memória,
+busca e rerank com fakes, injeção automática através de um servidor HTTP real, e o dashboard:
+login, recusa de CSRF, nenhum estilo inline sob a CSP, escape de nomes de arquivo e de texto de
+chunk, uploads, anexos e fragmentos.
 
 ### Evals
 

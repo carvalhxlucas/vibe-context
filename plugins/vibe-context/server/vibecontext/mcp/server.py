@@ -50,13 +50,18 @@ def search_context(query: str, session_id: str | None = None, top_k: int = 5) ->
 
 @server.tool()
 def list_documents(session_id: str | None = None) -> dict:
-    """List the documents VibeContext can search: the global ones, plus the ones attached to
-    the given session. Shows each file's status; failed files carry the reason."""
-    fields = ("id", "filename", "scope", "kind", "status", "chunk_count", "error")
-    found = client.call(paths, "GET", "/api/documents", params={"scope": "global"})["documents"]
+    """List the documents VibeContext can search for this caller: the ones attached
+    globally, plus the ones attached to the given session. Shows each file's status;
+    failed files carry the reason."""
+    fields = ("id", "filename", "kind", "status", "chunk_count", "error")
+    found: dict[str, dict] = {}
+    for doc in client.call(paths, "GET", "/api/documents", params={"scope": "global"})["documents"]:
+        found[doc["id"]] = {**{key: doc[key] for key in fields}, "attached": ["global"]}
     if session_id:
-        found += client.call(paths, "GET", "/api/documents", params={"session_id": session_id})["documents"]
-    return {"documents": [{key: doc[key] for key in fields} for doc in found]}
+        for doc in client.call(paths, "GET", "/api/documents", params={"session_id": session_id})["documents"]:
+            entry = found.setdefault(doc["id"], {**{key: doc[key] for key in fields}, "attached": []})
+            entry["attached"].append("this session")
+    return {"documents": list(found.values())}
 
 
 @server.tool()

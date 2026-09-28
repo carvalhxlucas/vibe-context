@@ -1,9 +1,27 @@
 {% extends "base.html" %}
-{% block title %}Global context · VibeContext{% endblock %}
+{% from "partials/macros.html" import brain_overlay %}
+{% block title %}Contexto global · VibeContext{% endblock %}
 {% block content %}
-<h1>Global context</h1>
-<p class="hint">Files every Claude Code session can search: product specs, business rules, team conventions.</p>
-{% set messages = [] %}
-{% include "partials/upload.html" %}
-{% include "partials/documents_table.html" %}
+<section class="detail" data-drop-target="global">
+  <header class="detail-head">
+    <div class="stack-8 narrow">
+      <h1 class="title">Contexto global</h1>
+      <span class="lede">Arquivos globais ficam disponíveis para a busca de todas as sessões do Claude Code. O Claude consulta o que precisa; nada é carregado inteiro no contexto.</span>
+    </div>
+    <div class="row-10">
+      <button class="btn" hx-get="/ui/picker?target=global" hx-target="#modal" hx-swap="innerHTML">Da biblioteca</button>
+      <button class="btn primary" data-upload-target="global">Anexar ao global</button>
+    </div>
+  </header>
+
+  <div class="detail-grid">
+    <div class="brain-panel tall">
+      <canvas class="brain" data-brain></canvas>
+      {{ brain_overlay(gctx, "CONTEXTO TOTAL", "tokens indexados", gctx.chunks ~ " chunks · " ~ gctx.files ~ " arquivos · " ~ gctx.sessions ~ " sessões") }}
+    </div>
+    {% include "partials/global_side.html" %}
+  </div>
+
+  <div class="drop-overlay"><span>Solte para anexar ao <span class="accent">contexto global</span></span></div>
+</section>
 {% endblock %}

@@ -10,7 +10,7 @@
       "name": "vibe-context",
       "source": "./plugins/vibe-context",
       "description": "Indexes documents that live outside the repository and exposes them to Claude through a hybrid search MCP tool, with a local dashboard to attach files per session or globally.",
-      "version": "0.1.0",
+      "version": "0.2.0",
       "author": {
         "name": "Lucas Carvalho"
       },

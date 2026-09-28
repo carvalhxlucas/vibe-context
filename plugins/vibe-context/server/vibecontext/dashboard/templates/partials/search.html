@@ -1,0 +1,19 @@
+<div class="modal-backdrop" data-modal>
+  <div class="modal wide" role="dialog" aria-modal="true" aria-label="Testar busca">
+    <div class="modal-head">
+      <div class="row-between">
+        <span class="modal-title">Testar busca <span class="dim small">o que o Claude recebe do search_context</span></span>
+        <button class="icon-btn boxed" data-close-modal aria-label="Fechar">×</button>
+      </div>
+      <form class="row-10" hx-post="/ui/search" hx-target="#search-results">
+        <input class="input grow" type="search" name="query" placeholder="Pergunte como o Claude perguntaria…" maxlength="2000" required autofocus>
+        <select class="input" name="session_id" aria-label="Sessão">
+          <option value="">Só global</option>
+          {% for s in sessions %}<option value="{{ s.id }}">+ {{ s.name }}</option>{% endfor %}
+        </select>
+        <button class="btn primary" type="submit">Buscar</button>
+      </form>
+    </div>
+    <div id="search-results" class="modal-body"></div>
+  </div>
+</div>

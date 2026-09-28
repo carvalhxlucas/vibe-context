@@ -1,0 +1,21 @@
+<div id="picker-rows" class="modal-body" hx-get="/ui/picker?target={{ target }}&rows_only=true" hx-include="#picker-q"
+     hx-trigger="vc-changed from:body" hx-swap="outerHTML">
+  {% for p in rows %}
+    <div class="picker-row">
+      <span class="kind-dot c-{{ p.kind_color }}"></span>
+      <div class="file-main">
+        <span class="file-name ellipsis">{{ p.name }}</span>
+        <span class="file-note mono ellipsis">{{ p.note }} · {{ p.tokens }} tokens</span>
+      </div>
+      {% if p.attached %}
+        <button class="btn small ghost" hx-post="/ui/detach" hx-swap="none" title="Desanexar"
+                hx-vals='{"doc_id": "{{ p.id }}", "target": "{{ target }}"}'>Anexado</button>
+      {% else %}
+        <button class="btn small" hx-post="/ui/attach" hx-swap="none"
+                hx-vals='{"doc_id": "{{ p.id }}", "target": "{{ target }}"}'>Anexar</button>
+      {% endif %}
+    </div>
+  {% else %}
+    <div class="empty pad">Nada na biblioteca{{ " com esse nome" if q }}. Importe arquivos na <a href="/library">Biblioteca</a>.</div>
+  {% endfor %}
+</div>

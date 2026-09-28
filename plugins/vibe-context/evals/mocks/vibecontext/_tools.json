@@ -32,13 +32,13 @@
         "required": [
           "query"
         ],
-        "type": "object",
-        "title": "search_contextArguments"
+        "title": "search_contextArguments",
+        "type": "object"
       }
     },
     {
       "name": "list_documents",
-      "description": "List the documents VibeContext can search: the global ones, plus the ones attached to\n    the given session. Shows each file's status; failed files carry the reason.",
+      "description": "List the documents VibeContext can search for this caller: the ones attached\n    globally, plus the ones attached to the given session. Shows each file's status;\n    failed files carry the reason.",
       "inputSchema": {
         "properties": {
           "session_id": {
@@ -54,8 +54,8 @@
             "title": "Session Id"
           }
         },
-        "type": "object",
-        "title": "list_documentsArguments"
+        "title": "list_documentsArguments",
+        "type": "object"
       }
     },
     {
@@ -80,8 +80,8 @@
             "type": "integer"
           }
         },
-        "type": "object",
-        "title": "list_sessionsArguments"
+        "title": "list_sessionsArguments",
+        "type": "object"
       }
     }
   ],

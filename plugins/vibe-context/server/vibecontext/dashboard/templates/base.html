@@ -1,26 +1,28 @@
 <!doctype html>
-<html lang="en">
+<html lang="pt-BR">
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>{% block title %}VibeContext{% endblock %}</title>
   {# No eval, no inline scripts or styles: the page runs under a strict CSP. #}
   <meta name="htmx-config" content='{"includeIndicatorStyles": false, "allowEval": false, "allowScriptTags": false}'>
+  <link rel="preload" href="/static/fonts/Geist-Variable.woff2" as="font" type="font/woff2" crossorigin>
   <link rel="stylesheet" href="/static/style.css">
   <script src="/static/htmx.min.js" defer></script>
+  <script src="/static/app.js" defer></script>
 </head>
 <body>
-  <header class="topbar">
-    <a class="brand" href="/sessions">VibeContext</a>
-    <nav>
-      <a href="/sessions" {% if page == "sessions" %}aria-current="page"{% endif %}>Sessions</a>
-      <a href="/global" {% if page == "global" %}aria-current="page"{% endif %}>Global context</a>
-      <a href="/library" {% if page == "library" %}aria-current="page"{% endif %}>Library</a>
-    </nav>
-    <div id="status" hx-get="/ui/status" hx-trigger="load" hx-swap="outerHTML"></div>
-  </header>
-  <main>
+<div class="app">
+  {% include "partials/sidebar.html" %}
+  <main class="main">
     {% block content %}{% endblock %}
   </main>
+</div>
+<div id="modal"></div>
+<div id="toast" class="toast" role="status" aria-live="polite" hidden>
+  <span class="dot glow c-violet"></span><span class="toast-text"></span>
+</div>
+<input type="file" id="file-input" multiple hidden
+       accept=".pdf,.docx,.md,.markdown,.txt,.rst,.py,.js,.mjs,.cjs,.jsx,.ts,.mts,.cts,.tsx,.go,.rs,.java,.kt,.kts,.rb,.php,.c,.h,.cpp,.cc,.cxx,.hpp,.cs,.swift,.scala,.sh,.bash,.sql,.yaml,.yml,.json,.toml">
 </body>
 </html>
